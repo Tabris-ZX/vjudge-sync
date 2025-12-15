@@ -6,10 +6,13 @@
 // @match        https://vjudge.net/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
+// @connect raw.githubusercontent.com
+
 // @connect      vjudge.net
 // @connect      qoj.ac
 // @connect      codeforces.com
 // @connect      luogu.com.cn
+
 // ==/UserScript==
 
 (function () {
