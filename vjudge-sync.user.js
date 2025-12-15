@@ -16,7 +16,7 @@
     'use strict';
     if (!location.host.includes('vjudge.net')) return;
 
-    const GITHUB_CSS_URL = 'https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/master/panel.css';
+    const GITHUB_CSS_URL = 'https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/panel.css';
     
     /* ================= 加载 CSS 样式 ================= */
     function injectCSS(cssText) {
