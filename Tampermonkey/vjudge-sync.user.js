@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         VJudgeのAC自动机
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
-// @version      2.1
-// @description  VJudge 题目一键同步,目前支持洛谷,cf,atc,qoj
+// @version      2.2
+// @description  VJudge 一键同步归档已绑定的oj过题记录,目前支持洛谷,cf,atc,qoj,牛客
+// @author       Tabris_ZX
 // @match        https://vjudge.net/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @connect      raw.githubusercontent.com
-// @updateURL    https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/vjudge-sync.user.js
-// @downloadURL  https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/vjudge-sync.user.js
+// @license      AGPL-3.0
 
 // @connect      vjudge.net
 // @connect      luogu.com.cn
