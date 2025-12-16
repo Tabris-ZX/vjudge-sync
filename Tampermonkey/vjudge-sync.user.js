@@ -59,24 +59,19 @@
         <div id="vj-sync-body">
         <span>同步前确保vj上已经绑定好相应oj的账号</span>
             <div class="vj-input-group">
-                <label>洛谷</label>
-                <input id="vj-lg" class="vj-input" placeholder="UID" />
+                <label><input type="checkbox" id="vj-lg" /> 洛谷</label>
             </div>
             <div class="vj-input-group">
-                <label>CodeForces</label>
-                <input id="vj-cf" class="vj-input" placeholder="用户名" />
+                <label><input type="checkbox" id="vj-cf" /> CodeForces</label>
             </div>
             <div class="vj-input-group">
-                <label>AtCoder</label>
-                <input id="vj-atc" class="vj-input" placeholder="用户名" />
+                <label><input type="checkbox" id="vj-atc" /> AtCoder</label>
             </div>
             <div class="vj-input-group">
-                <label>QOJ</label>
-                <input id="vj-qoj" class="vj-input" placeholder="用户名" />
+                <label><input type="checkbox" id="vj-qoj" /> QOJ</label>
             </div>
             <div class="vj-input-group">
-                <label>NowCoder</label>
-                <input id="vj-nc" class="vj-input" placeholder="严肃开发中." />
+                <label><input type="checkbox" id="vj-nc" /> 牛客(严肃开发中...)</label>
             </div>
             <button id="vj-sync-btn">一键全同步</button>
             <div id="vj-sync-log"></div>
@@ -104,14 +99,19 @@
         content.style.display = 'none';
         toggleBtn.textContent = '+';
     }
-    document.getElementById('vj-lg').value = localStorage.getItem('vj_lg_uid') || '';
-    document.getElementById('vj-cf').value = localStorage.getItem('vj_cf_uid') || '';
-    document.getElementById('vj-atc').value = localStorage.getItem('vj_atc_uid') || '';
-    document.getElementById('vj-qoj').value = localStorage.getItem('vj_qoj_uid') || '';
+    // 恢复各 OJ 的勾选状态
+    ['vj-lg', 'vj-cf','vj-atc','vj-qoj','vj-nc'].forEach(id => {
+        const saved = localStorage.getItem(id + '_checked');
+        if (saved === 'true') {
+            const el = document.getElementById(id);
+            if (el) el.checked = true;
+        }
+    });
 
-    ['vj-lg', 'vj-cf','vj-atc','vj-qoj'].forEach(id => {
-        document.getElementById(id).addEventListener('input', (e) => {
-            localStorage.setItem(id + '_uid', e.target.value.trim());
+    // 勾选变化时保存到 localStorage
+    ['vj-lg', 'vj-cf','vj-atc','vj-qoj','vj-nc'].forEach(id => {
+        document.getElementById(id).addEventListener('change', (e) => {
+            localStorage.setItem(id + '_checked', e.target.checked);
         });
     });
 
@@ -210,11 +210,11 @@
 
     // --- 各个OJ的获取逻辑 ---
 
-    function fetchLuogu(uid) {
+    function fetchLuogu(user) {
         log('正在同步洛谷数据...');
         GM_xmlhttpRequest({
             method: 'GET',
-            url: `https://www.luogu.com.cn/user/${uid}/practice`,
+            url: `https://www.luogu.com.cn/user/${encodeURIComponent(user)}/practice`,
             headers: { 'X-Lentille-Request': 'content-only' },
             onload: res => {
                 try {
@@ -223,17 +223,17 @@
                     const pids = passed.map(x => x.pid);
                     log(`洛谷: 发现 ${pids.length} AC`);
                     submitVJ('洛谷', pids);
-                } catch(e) { log('洛谷数据解析失败'); }
+                } catch(err) { log('洛谷数据解析失败'); }
             },
             onerror: () => log('洛谷请求失败')
         });
     }
 
-    function fetchCodeForces(uid) {
+    function fetchCodeForces(user) {
         log('正在同步CF数据...');
         GM_xmlhttpRequest({
             method: 'GET',
-            url: `https://codeforces.com/api/user.status?handle=${uid}`,
+            url: `https://codeforces.com/api/user.status?handle=${user}`,
             onload: res => {
                 try {
                     const result = JSON.parse(res.responseText).result || [];
@@ -243,18 +243,18 @@
                     const uniquePids = [...new Set(pids)];
                     log(`CF: 发现 ${uniquePids.length} AC`);
                     submitVJ('CodeForces', uniquePids);
-                } catch(e) { log('CF数据解析失败'); }
+                } catch(err) { log('CF数据解析失败'); }
             },
             onerror: () => log('CF请求失败')
         });
     }
 
-    //数据来源:https://github.com/kenkoooo/AtCoderProblems感谢大佬
-    function fetchAtCoder(uid){
+    //数据来源:https://github.com/kenkoooo/AtCoderProblems
+    function fetchAtCoder(user){
         log('正在同步AtCoder数据...');
         GM_xmlhttpRequest({
             method: 'GET',
-            url: `https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${uid}&from_second=0`,
+            url: `https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${user}&from_second=0`,
             onload: res => {
                 try {
                     const list = JSON.parse(res.responseText) || [];
@@ -264,18 +264,17 @@
                     const uniquePids = [...new Set(pids)];
                     log(`ATC: 发现 ${uniquePids.length} AC`);
                     submitVJ('AtCoder', uniquePids);
-                } catch(e) { log('ATC数据解析失败'); }
+                } catch(err) { log('ATC数据解析失败'); }
             },
             onerror: () => log('ATC请求失败')
         });
     }
 
-
-    function fetchQOJ(uid) {
+    function fetchQOJ(user) {
         log('正在同步QOJ数据...');
         GM_xmlhttpRequest({
             method: 'GET',
-            url: `https://qoj.ac/user/profile/${uid}`,
+            url: `https://qoj.ac/user/profile/${user}`,
             onload: res => {
                 try {
                     const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
@@ -284,10 +283,38 @@
                     console.log(pids)
                     log(`QOJ: 发现 ${pids.length} AC`);
                     submitVJ('QOJ', pids);
-                } catch(e) { log('QOJ解析失败'); }
+                } catch(err) { log('QOJ解析失败'); }
             },
             onerror: () => log('QOJ请求失败')
         });
+    }
+
+    // 检查 VJudge 上是否已绑定指定 OJ 账号，返回 Promise<string|null>
+    function verifyAccount(oj) {
+        log(`正在检查${oj}账号信息...`);
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: `https://vjudge.net/user/verifiedAccount?oj=${encodeURIComponent(oj)}`,
+                onload: res => {
+                    try {
+                        const data = JSON.parse(res.responseText);
+                        const account = data && data.accountDisplay ? data.accountDisplay : null;
+                        resolve(account);
+                    } catch (err) {
+                        resolve(null);
+                    }
+                },
+                onerror: () => log(`${oj}请求失败`)
+            });
+        });
+    }
+
+    //解析用户名
+    function extractTextFromHtml(account) {
+        const temp = document.createElement('div');
+        temp.innerHTML = account;
+        return temp.textContent || temp.innerText || '';
     }
 
     // --- 提交逻辑 ---
@@ -315,12 +342,12 @@
                 }
                 else log(`${oj} ${pid} failed!`);
             } catch (err) {
-                console.error(`${oj} ${pid} 提交失败:`, err);
+                log(`${oj} ${pid} 提交失败:`, err);
             }
-            await new Promise(res => setTimeout(res, 50));
+            await new Promise(resolve => setTimeout(resolve, 50));
         }
-        log(`${oj}: 同步完成，新增 ${successCnt} 题`);
-    }
+        log(`${oj}: 同步完成，更新 ${successCnt} 题`);
+    } 
 
     // --- 按钮事件 ---
     document.getElementById('vj-sync-btn').onclick = async function() {
@@ -332,22 +359,55 @@
         submitted.clear();
         vjArchived = {};
         
-        const lg = document.getElementById('vj-lg').value.trim();
-        const cf = document.getElementById('vj-cf').value.trim();
-        const atc = document.getElementById('vj-atc').value.trim();
-        const qoj = document.getElementById('vj-qoj').value.trim();
-        //const nc = document.getElementById('vj-nc').value.trim();
+        const needLg  = document.getElementById('vj-lg').checked;
+        const needCf  = document.getElementById('vj-cf').checked;
+        const needAtc = document.getElementById('vj-atc').checked;
+        const needQoj = document.getElementById('vj-qoj').checked;
 
         fetchVJudgeArchived(() => {
-            if (lg) fetchLuogu(lg);
-            if (cf) fetchCodeForces(cf);
-            if (atc) fetchAtCoder(atc);
-            if (qoj) fetchQOJ(qoj);
+            const tasks = [];
+            if (needLg) {
+                tasks.push(
+                    verifyAccount('洛谷').then(account => {
+                        const user = account.match(/\/user\/(\d+)/);
+                        if (user) fetchLuogu(user[1]);
+                        else log('未找到洛谷账号信息');
+                    })
+                );
+            }
+            if (needCf) {
+                tasks.push(
+                    verifyAccount('CodeForces').then(account => {
+                        const user = extractTextFromHtml(account);
+                        if (user) fetchCodeForces(user);
+                        else log('未找到CodeForces账号信息');
+                    })
+                );
+            }
+            if (needAtc) {
+                tasks.push(
+                    verifyAccount('AtCoder').then(account => {
+                        const user = extractTextFromHtml(account);
+                        if (user) fetchAtCoder(user);
+                        else log('未找到AtCoder账号信息');
+                    })
+                );
+            }
+            if (needQoj) {
+                tasks.push(
+                    verifyAccount('QOJ').then(account => {
+                        const user = extractTextFromHtml(account);
+                        if (user) fetchQOJ(user);
+                        else log('未找到QOJ账号信息');
+                    })
+                );
+            }
 
-            setTimeout(() => {
+            Promise.all(tasks).finally(() => {
                 btn.disabled = false;
                 btn.textContent = '一键全同步';
-            }, 5000); 
+                log('同步完成');
+            });
         });
     };
 })();
