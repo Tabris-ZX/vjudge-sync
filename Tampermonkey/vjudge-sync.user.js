@@ -1,25 +1,27 @@
 // ==UserScript==
-// @name         VJudge一键同步
+// @name         VJudgeのAC自动机
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
-// @version      2.0
-// @description  VJudge 题目一键同步,目前支持洛谷,cf,qoj
+// @version      2.1
+// @description  VJudge 题目一键同步,目前支持洛谷,cf,atc,qoj
 // @match        https://vjudge.net/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
-// @connect raw.githubusercontent.com
+// @connect      raw.githubusercontent.com
+// @updateURL    https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/vjudge-sync.user.js
+// @downloadURL  https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/vjudge-sync.user.js
 
 // @connect      vjudge.net
-// @connect      qoj.ac
-// @connect      codeforces.com
 // @connect      luogu.com.cn
+// @connect      codeforces.com
+// @connect      kenkoooo.com
+// @connect      qoj.ac
 
 // ==/UserScript==
-
 (function () {
     'use strict';
     if (!location.host.includes('vjudge.net')) return;
 
-    const GITHUB_CSS_URL = 'https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/panel.css';
+    const GITHUB_CSS_URL = 'https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/panel.css';
     
     /* ================= 加载 CSS 样式 ================= */
     function injectCSS(cssText) {
@@ -36,11 +38,8 @@
                 method: 'GET',
                 url: GITHUB_CSS_URL,
                 onload: function(res) {
-                    if (res.status === 200) {
-                        injectCSS(res.responseText);
-                    } else {
-                        console.error('GitHub CSS加载失败，状态码:', res.status);
-                    }
+                    if (res.status === 200) injectCSS(res.responseText);
+                     else console.error('GitHub CSS加载失败，状态码:', res.status);
                 },
                 onerror: function(err) {
                     console.error('GitHub CSS请求失败:', err);
@@ -54,21 +53,30 @@
     panel.id = 'vj-sync-panel';
     panel.innerHTML = `
         <div id="vj-sync-header">
-            <span>vj同步助手</span>
+            <span>vjのAC自动机</span>
             <span id="vj-toggle-btn" class="vj-btn-icon" title="收起/展开">−</span>
         </div>
         <div id="vj-sync-body">
+        <span>同步前确保vj上已经绑定好相应oj的账号</span>
             <div class="vj-input-group">
                 <label>洛谷</label>
                 <input id="vj-lg" class="vj-input" placeholder="UID" />
             </div>
             <div class="vj-input-group">
-                <label>CF</label>
+                <label>CodeForces</label>
                 <input id="vj-cf" class="vj-input" placeholder="用户名" />
+            </div>
+            <div class="vj-input-group">
+                <label>AtCoder</label>
+                <input id="vj-atc" class="vj-input" placeholder="用户名" />
             </div>
             <div class="vj-input-group">
                 <label>QOJ</label>
                 <input id="vj-qoj" class="vj-input" placeholder="用户名" />
+            </div>
+            <div class="vj-input-group">
+                <label>NowCoder</label>
+                <input id="vj-nc" class="vj-input" placeholder="严肃开发中." />
             </div>
             <button id="vj-sync-btn">一键全同步</button>
             <div id="vj-sync-log"></div>
@@ -98,9 +106,10 @@
     }
     document.getElementById('vj-lg').value = localStorage.getItem('vj_lg_uid') || '';
     document.getElementById('vj-cf').value = localStorage.getItem('vj_cf_uid') || '';
+    document.getElementById('vj-atc').value = localStorage.getItem('vj_atc_uid') || '';
     document.getElementById('vj-qoj').value = localStorage.getItem('vj_qoj_uid') || '';
 
-    ['vj-lg', 'vj-cf', 'vj-qoj'].forEach(id => {
+    ['vj-lg', 'vj-cf','vj-atc','vj-qoj'].forEach(id => {
         document.getElementById(id).addEventListener('input', (e) => {
             localStorage.setItem(id + '_uid', e.target.value.trim());
         });
@@ -152,8 +161,7 @@
         }
     });
 
-    const submitted = new Set();
-    let vjudgeArchived = {}; 
+    let vjArchived = {};
 
     function log(msg) {
         logBox.style.display = 'block';
@@ -176,7 +184,7 @@
         const username = getVJudgeUsername();
         if (!username) {
             log('未找到VJ用户名');
-            vjudgeArchived = {};
+            vjArchived = {};
             if (callback) callback();
             return;
         }
@@ -187,9 +195,9 @@
             onload: res => {
                 try {
                     const json = JSON.parse(res.responseText);
-                    vjudgeArchived = json.acRecords || {};
+                    vjArchived = json.acRecords || {};
                     let total = 0;
-                    for (let k in vjudgeArchived) total += vjudgeArchived[k].length;
+                    for (let k in vjArchived) total += vjArchived[k].length;
                     log(`VJ已AC ${total} 题`);
                     if (callback) callback();
                 } catch (err) {
@@ -221,7 +229,7 @@
         });
     }
 
-    function fetchCF(uid) {
+    function fetchCodeForces(uid) {
         log('正在同步CF数据...');
         GM_xmlhttpRequest({
             method: 'GET',
@@ -240,6 +248,28 @@
             onerror: () => log('CF请求失败')
         });
     }
+
+    //数据来源:https://github.com/kenkoooo/AtCoderProblems感谢大佬
+    function fetchAtCoder(uid){
+        log('正在同步AtCoder数据...');
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: `https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${uid}&from_second=0`,
+            onload: res => {
+                try {
+                    const list = JSON.parse(res.responseText) || [];
+                    const pids = list
+                        .filter(r => r.result === 'AC')
+                        .map(r => `${r.problem_id}`);
+                    const uniquePids = [...new Set(pids)];
+                    log(`ATC: 发现 ${uniquePids.length} AC`);
+                    submitVJ('AtCoder', uniquePids);
+                } catch(e) { log('ATC数据解析失败'); }
+            },
+            onerror: () => log('ATC请求失败')
+        });
+    }
+
 
     function fetchQOJ(uid) {
         log('正在同步QOJ数据...');
@@ -261,20 +291,17 @@
     }
 
     // --- 提交逻辑 ---
+    const submitted = new Set();
     async function submitVJ(oj, pids) {
-        const archived = vjudgeArchived[oj] || [];
+
+        const archived = vjArchived[oj] || [];
         const archivedSet = new Set(archived);
- 
-        const filteredPids = pids.filter(pid => {
-            if (archivedSet.has(pid)) return false;
-            const key = `${oj}-${pid}`;
-            if (submitted.has(key)) return false;
-            return true;
-        });
-        
         let successCnt = 0;
-        const promises = filteredPids.map(async (pid) => {
+
+        for (const pid of pids) {
+            if (archivedSet.has(pid)) continue; // 已提交过
             const key = `${oj}-${pid}`;
+            if (submitted.has(key)) continue;    // 本次已提交
             submitted.add(key);
             try {
                 const res = await fetch(`https://vjudge.net/problem/submit/${key}`, {
@@ -284,15 +311,17 @@
                 });
                 if (res.ok) {
                     successCnt++;
-                } 
+                    log(`${oj} ${pid} success!`);
+                }
+                else log(`${oj} ${pid} failed!`);
             } catch (err) {
-                console.error('提交失败:', err);
+                console.error(`${oj} ${pid} 提交失败:`, err);
             }
-        });
-
-        await Promise.all(promises);
+            await new Promise(res => setTimeout(res, 50));
+        }
         log(`${oj}: 同步完成，新增 ${successCnt} 题`);
     }
+
     // --- 按钮事件 ---
     document.getElementById('vj-sync-btn').onclick = async function() {
         const btn = this;
@@ -301,15 +330,18 @@
         logBox.innerHTML = '';
         
         submitted.clear();
-        vjudgeArchived = {};
+        vjArchived = {};
         
         const lg = document.getElementById('vj-lg').value.trim();
         const cf = document.getElementById('vj-cf').value.trim();
+        const atc = document.getElementById('vj-atc').value.trim();
         const qoj = document.getElementById('vj-qoj').value.trim();
+        //const nc = document.getElementById('vj-nc').value.trim();
 
         fetchVJudgeArchived(() => {
             if (lg) fetchLuogu(lg);
-            if (cf) fetchCF(cf);
+            if (cf) fetchCodeForces(cf);
+            if (atc) fetchAtCoder(atc);
             if (qoj) fetchQOJ(qoj);
 
             setTimeout(() => {
@@ -318,5 +350,4 @@
             }, 5000); 
         });
     };
-
 })();
