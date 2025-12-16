@@ -24,7 +24,7 @@ AtCoder 数据由以下项目提供支持，感谢大佬：
 
 ## 一键获取
 ### 油猴脚本下载
-**[点击此处一键下载脚本](https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/vjudge-sync.user.js)**
+**[点击此处一键下载脚本](https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/vjudge-sync.user.js)**
 
 ### 浏览器插件下载
 **严肃开发中...**
