@@ -4,7 +4,8 @@
 方便统一统计个人的过题情况与做题进度。
 
 持续更新中...
-## 当前支持的 OJ
+
+## 当前支持的功能
 
 - [x] 洛谷
 - [x] Codeforces
@@ -13,24 +14,31 @@
 - [x] 牛客
 - [ ] UOJ
 
+- [ ] AC代码一键同步远程仓库
+- [ ] 浏览器插件版本
+
 ## 快速使用
 
-### 可归档OJ(除牛客)
+### 可归档OJ(除了牛客)
 **在VJudge上绑定过账号就可以实现一键同步**
 
-### 不可归档OJ(牛客)
-**在VJudge上绑定账号,并且在面板上填写token可用**
+1. 进入vjudge网站,旁边会出现一个面板
+2. 勾选要同步的OJ,点击"一键同步"即可
+3. 要停止同步,刷新页面即可(终止功能懒得写了)
+![](doc/panel.png)
 
-#### token获取方法
-1. 按F12 → 选择Network(网络)面板
-2. 刷新页面或触发操作
-3. 随便点一个请求,找到Cookie字段
-4. token就是cookie中`t=`开头的值
-![NowCoderCookie.png](doc/NowCoderCookie.png)
+### 不可归档OJ(目前只有牛客)
+
+目前问题较多,暂不建议同步
+(会出现速率限制,题目不存在等问题,等后续版本解决)
+
 
 ## 一键获取
+
+**[项目地址](https://github.com/Tabris-ZX/vjudge-sync)**
+
 ### 油猴脚本下载
-**[点击此处一键下载脚本](https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/vjudge-sync.user.js)**
+**[点击此处一键下载脚本](https://greasyfork.org/zh-CN/scripts/559149-vjudge%E3%81%AEac%E8%87%AA%E5%8A%A8%E6%9C%BA)**
 
 ### 浏览器插件下载
 **严肃开发中...**
