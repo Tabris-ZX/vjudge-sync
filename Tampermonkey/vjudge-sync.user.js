@@ -25,8 +25,9 @@
         'use strict';
         if (!location.host.includes('vjudge.net')) return;
 
-        /*配置项*/
+        /* 配置项 */
         const GITHUB_CSS_URL = 'https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/panel.css';
+        const GITHUB_JS_URL = 'https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/panel.js';
         const unarchivable_oj = new Set(['牛客']);
         const language_map = new Map([['C++', '2'], ['Java', '4'], ['Python3', '11'], ['C', '39']]);
 
@@ -42,206 +43,126 @@
         }
 
         function loadCSS() {
-            GM_xmlhttpRequest({
-                method: 'GET',
-                url: GITHUB_CSS_URL,
-                onload: function (res) {
-                    if (res.status === 200) injectCSS(res.responseText);
-                    else console.error('GitHub CSS加载失败，状态码:', res.status);
-                },
-                onerror: function (err) {
-                    console.error('GitHub CSS请求失败:', err);
-                }
-            });
-        }
-
-        loadCSS();
-
-        /* ================= 2. 构建 UI DOM ================= */
-        const panel = document.createElement('div');
-        panel.id = 'vj-sync-panel';
-        panel.innerHTML = `
-    <div id="vj-sync-header">
-        <span>vjのAC自动机</span>
-        <span id="vj-toggle-btn" class="vj-btn-icon" title="收起/展开">−</span>
-    </div>
-    <div id="vj-sync-body">
-    <span>同步前确保vj上已经绑定好相应oj的账号</span>
-        <div class="vj-input-group">
-            <label><input type="checkbox" id="vj-lg" /> 洛谷</label>
-        </div>
-        <div class="vj-input-group">
-            <label><input type="checkbox" id="vj-nc" /> 牛客(未完善)</label>
-        </div>
-        <div class="vj-input-group">
-            <label><input type="checkbox" id="vj-cf" /> CodeForces</label>
-        </div>
-        <div class="vj-input-group">
-            <label><input type="checkbox" id="vj-atc" /> AtCoder</label>
-        </div>
-        <div class="vj-input-group">
-            <label><input type="checkbox" id="vj-qoj" /> QOJ</label>
-        </div>
-        <div class="vj-input-group">
-            <label><input type="checkbox" id="vj-uoj" /> UOJ</label>
-        </div>
-        <button id="vj-sync-btn">一键同步</button>
-        <div id="vj-sync-log"></div>
-    </div>
-`;
-        document.body.appendChild(panel);
-
-        /* ================= 3. 交互逻辑 (拖拽、折叠、存储) ================= */
-        const header = document.getElementById('vj-sync-header');
-        const toggleBtn = document.getElementById('vj-toggle-btn');
-        const content = document.getElementById('vj-sync-body');
-        const logBox = document.getElementById('vj-sync-log');
-        // --- 恢复位置 ---
-        const savedPos = JSON.parse(localStorage.getItem('vj_panel_pos') || '{"top":"100px","right":"20px"}');
-        // 简单的防止溢出屏幕检查
-        if (parseInt(savedPos.top) > window.innerHeight - 50) savedPos.top = '100px';
-        panel.style.top = savedPos.top;
-        panel.style.right = 'auto';
-        panel.style.left = savedPos.left || 'auto';
-        if (!savedPos.left) panel.style.right = savedPos.right;
-
-        let isCollapsed = localStorage.getItem('vj_panel_collapsed') === 'true';
-        if (isCollapsed) {
-            content.style.display = 'none';
-            toggleBtn.textContent = '+';
-        }
-        // 恢复各 OJ 的勾选状态
-        ['vj-lg', 'vj-cf', 'vj-atc', 'vj-qoj', 'vj-nc', 'vj-uoj'].forEach(id => {
-            const saved = localStorage.getItem(id + '_checked');
-            if (saved === 'true') {
-                const el = document.getElementById(id);
-                if (el) el.checked = true;
-            }
-        });
-
-        ['vj-lg', 'vj-cf', 'vj-atc', 'vj-qoj', 'vj-nc', 'vj-uoj'].forEach(id => {
-            document.getElementById(id).addEventListener('change', (e) => {
-                localStorage.setItem(id + '_checked', e.target.checked);
-            });
-        });
-
-        toggleBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            isCollapsed = !isCollapsed;
-            content.style.display = isCollapsed ? 'none' : 'block';
-            toggleBtn.textContent = isCollapsed ? '+' : '−';
-            localStorage.setItem('vj_panel_collapsed', isCollapsed);
-        });
-
-        let isDragging = false;
-        let dragStart = {x: 0, y: 0};
-        let panelStart = {x: 0, y: 0};
-
-        header.addEventListener('mousedown', (e) => {
-            if (e.target === toggleBtn) return;
-            isDragging = true;
-            dragStart = {x: e.clientX, y: e.clientY};
-            const rect = panel.getBoundingClientRect();
-            panelStart = {x: rect.left, y: rect.top};
-            header.style.cursor = 'grabbing';
-            e.preventDefault();
-        });
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            const dx = e.clientX - dragStart.x;
-            const dy = e.clientY - dragStart.y;
-
-            const newLeft = panelStart.x + dx;
-            const newTop = panelStart.y + dy;
-
-            panel.style.left = newLeft + 'px';
-            panel.style.top = newTop + 'px';
-            panel.style.right = 'auto';
-        });
-        document.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-                header.style.cursor = 'move';
-                localStorage.setItem('vj_panel_pos', JSON.stringify({
-                    left: panel.style.left,
-                    top: panel.style.top
-                }));
-            }
-        });
-        // --- 按钮事件 ---
-        document.getElementById('vj-sync-btn').onclick = async function () {
-            const btn = this;
-            btn.disabled = true;
-            btn.textContent = '同步中...';
-            logBox.innerHTML = '';
-
-            vjArchived = {};
-            const needLg = document.getElementById('vj-lg').checked;
-            const needCf = document.getElementById('vj-cf').checked;
-            const needAtc = document.getElementById('vj-atc').checked;
-            const needQoj = document.getElementById('vj-qoj').checked;
-            const needNc = document.getElementById('vj-nc').checked;
-            const needUoj = document.getElementById('vj-uoj').checked;
-
-            fetchVJudgeArchived(() => {
-                const tasks = [];
-                if (needLg) {
-                    tasks.push(verifyAccount('洛谷').then(account => {
-                            if (account == null) log('❌未找到洛谷账号信息');
-                            else fetchLuogu(account.match(/\/user\/(\d+)/)[1]);
-                        })
-                    );
-                }
-                if (needCf) {
-                    tasks.push(verifyAccount('CodeForces').then(account => {
-                            if (account == null) log('❌未找到CodeForces账号信息');
-                            else fetchCodeForces(account.replace(/<[^>]*>/g, ''));
-                        })
-                    );
-                }
-                if (needAtc) {
-                    tasks.push(verifyAccount('AtCoder').then(account => {
-                            if (account == null) log('❌未找到AtCoder账号信息');
-                            else fetchAtCoder(account.replace(/<[^>]*>/g, ''));
-                        })
-                    );
-                }
-                if (needQoj) {
-                    tasks.push(verifyAccount('QOJ').then(account => {
-                            if (account == null) log('❌未找到QOJ账号信息');
-                            else fetchQOJ(account.replace(/<[^>]*>/g, ''));
-                        })
-                    );
-                }
-                if (needNc) {
-                    tasks.push(verifyAccount('牛客').then(account => {
-                            if (account == null) log('❌未找到牛客账号信息');
-                            else fetchNowCoder(account.match(/\/profile\/(\d+)/)[1]);
-                        })
-                    );
-                }
-                if (needUoj) {
-                    tasks.push(verifyAccount('UniversalOJ').then(account => {
-                            if (account == null) log('❌未找到UOJ账号信息');
-                            else fetchUOJ(account.replace(/<[^>]*>/g, ''));
-                        })
-                    );
-                }
-                Promise.all(tasks).finally(() => {
-                    btn.disabled = false;
-                    btn.textContent = '一键同步';
+            return new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: GITHUB_CSS_URL,
+                    onload: function (res) {
+                        if (res.status === 200) {
+                            injectCSS(res.responseText);
+                            resolve();
+                        } else {
+                            reject(new Error('GitHub CSS加载失败，状态码: ' + res.status));
+                        }
+                    },
+                    onerror: function (err) {
+                        reject(new Error('GitHub CSS请求失败: ' + err));
+                    }
                 });
             });
-        };
+        }
+
+        /* ================= 加载面板脚本 ================= */
+        function loadPanelScript() {
+            return new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: GITHUB_JS_URL,
+                    onload: function (res) {
+                        if (res.status === 200) {
+                            // 执行面板脚本
+                            const script = document.createElement('script');
+                            script.textContent = res.responseText;
+                            document.head.appendChild(script);
+                            // 等待面板初始化完成
+                            setTimeout(() => {
+                                if (window.VJPanel) {
+                                    resolve();
+                                } else {
+                                    reject(new Error('面板初始化失败'));
+                                }
+                            }, 100);
+                        } else {
+                            reject(new Error('GitHub JS加载失败，状态码: ' + res.status));
+                        }
+                    },
+                    onerror: function (err) {
+                        reject(new Error('GitHub JS请求失败: ' + err));
+                    }
+                });
+            });
+        }
+
+        // 先加载 CSS，再加载面板脚本并初始化
+        loadCSS().then(() => {
+            return loadPanelScript();
+        }).then(() => {
+            // 创建全局 log 函数引用
+            log = window.VJPanel.log;
+
+            // 初始化同步按钮
+            window.VJPanel.initSyncButton(async function(options) {
+                vjArchived = {};
+                const {needLg, needCf, needAtc, needQoj, needNc, needUoj} = options;
+
+                await new Promise((resolve) => {
+                    fetchVJudgeArchived(() => {
+                        const tasks = [];
+                        if (needLg) {
+                            tasks.push(verifyAccount('洛谷').then(account => {
+                                    if (account == null) log('❌未找到洛谷账号信息');
+                                    else fetchLuogu(account.match(/\/user\/(\d+)/)[1]);
+                                })
+                            );
+                        }
+                        if (needCf) {
+                            tasks.push(verifyAccount('CodeForces').then(account => {
+                                    if (account == null) log('❌未找到CodeForces账号信息');
+                                    else fetchCodeForces(account.replace(/<[^>]*>/g, ''));
+                                })
+                            );
+                        }
+                        if (needAtc) {
+                            tasks.push(verifyAccount('AtCoder').then(account => {
+                                    if (account == null) log('❌未找到AtCoder账号信息');
+                                    else fetchAtCoder(account.replace(/<[^>]*>/g, ''));
+                                })
+                            );
+                        }
+                        if (needQoj) {
+                            tasks.push(verifyAccount('QOJ').then(account => {
+                                    if (account == null) log('❌未找到QOJ账号信息');
+                                    else fetchQOJ(account.replace(/<[^>]*>/g, ''));
+                                })
+                            );
+                        }
+                        if (needNc) {
+                            tasks.push(verifyAccount('牛客').then(account => {
+                                    if (account == null) log('❌未找到牛客账号信息');
+                                    else fetchNowCoder(account.match(/\/profile\/(\d+)/)[1]);
+                                })
+                            );
+                        }
+                        if (needUoj) {
+                            tasks.push(verifyAccount('UniversalOJ').then(account => {
+                                    if (account == null) log('❌未找到UOJ账号信息');
+                                    else fetchUOJ(account.replace(/<[^>]*>/g, ''));
+                                })
+                            );
+                        }
+                        Promise.all(tasks).finally(() => {
+                            resolve();
+                        });
+                    });
+                });
+            });
+        }).catch(err => {
+            console.error('面板加载失败:', err);
+        });
 
         let nc_id;
         let vjArchived = {};
-
-        function log(msg) {
-            logBox.style.display = 'block';
-            logBox.innerHTML += `<div>${msg}</div>`;
-            logBox.scrollTop = logBox.scrollHeight;
-        }
+        let log; // log 函数将在面板加载后初始化
 
         function getVJudgeUsername() {
             const urlMatch = location.pathname.match(/\/user\/([^\/]+)/);
@@ -450,9 +371,10 @@
                 log(`✅${oj}: 所有题目已同步`);
                 return;
             }
+            let rateLimitHit = false; // 频率限制标志（仅用于牛客OJ）
             const promises = toSubmit.map(async (problem, index) => {
                 if (!unarchivable_oj.has(oj)) {
-                    await new Promise(resolve => setTimeout(resolve, index * 100));
+                    await new Promise(resolve => setTimeout(resolve, index * 50));
                     const key = `${oj}-${problem}`;
                     try {
                         const resp = await fetch(`https://vjudge.net/problem/submit/${key}`, {
@@ -465,7 +387,7 @@
                             log(`✅${oj} ${problem} success`);
                             return {success: true, pid: problem};
                         } else {
-                            log(`❌${oj} ${problem} failed: \n${result?.error}`);
+                            log(`❌${oj} ${problem} failed:\n ${result.error}`);
                             return {success: false, pid: problem};
                         }
                     } catch (err) {
@@ -474,7 +396,11 @@
                     }
                 }
                 else {
-                    await new Promise(resolve => setTimeout(resolve, index * 2000)); // 更长间隔
+                    await new Promise(resolve => setTimeout(resolve, index * 3000));
+                    // 等待后再次检查频率限制标志
+                    if (rateLimitHit) {
+                        return {success: false, pid: problem.problemId, skipped: true};
+                    }
                     const key = `${oj}-${problem.problemId}`;
                     try {
                         const codeResp = await ncGet(`https://ac.nowcoder.com/acm/contest/view-submission?submissionId=${problem.submitId}&returnHomeType=1&uid=${nc_id}`);
@@ -490,7 +416,18 @@
                             log(`✅${oj} ${problem.problemId} success`);
                             return {success: true, pid: problem.problemId};
                         } else {
-                            log(`❌${oj} ${problem.problemId} failed: \n${result?.error}`);
+                            if (result?.error && result.error.includes('moment')) {
+                                rateLimitHit = true; // 设置标志，停止后续提交
+                                log(`❌${oj} ${problem.problemId} failed:`);
+                                log(`请求频率过高,请等待3分钟`);
+                                await new Promise(resolve => setTimeout(resolve, 180000)); // 等待3分钟（180000毫秒）
+                                log(`等待完成`);
+                            }else if(result?.error && result.error.includes('exist')){
+                                log(`🔄${oj} ${problem.problemId} skipped:`);
+                                log(`题目不存在,已跳过`);
+                            } else {
+                                log(`❌${oj} ${problem.problemId} failed:\n ${result?.error}`);
+                            }
                             return {success: false, pid: problem.problemId};
                         }
                     } catch (err) {
@@ -508,7 +445,7 @@
         }
 
         //不能归档的oj专用函数(目前只有牛客)
-        const headers = {cookie: 't=23D4F038EFBB4D806311285491E06B25'};//人机cookie
+        const headers = {cookie: 't=23D4F038EFBB4D806311285491E06B25'}; //人机cookie
         function ncGet(url) {
             return new Promise((resolve, reject) => {
                 GM_xmlhttpRequest({
