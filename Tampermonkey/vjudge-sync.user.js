@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VJudge-Sync
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
-// @version      2.2.3
+// @version      2.2.5
 // @description  VJudge 一键同步归档已绑定的oj过题记录,目前支持洛谷,牛客,cf,atc,qoj,uoj
 // @author       Tabris_ZX
 // @match        https://vjudge.net/*
@@ -27,8 +27,6 @@
 
     /*配置项*/
     const GITHUB_CSS_URL = 'https://raw.githubusercontent.com/Tabris-ZX/vjudge-sync/main/Tampermonkey/panel.css';
-    const unarchivable_oj = new Set(['牛客']);
-    const language_map = new Map([['C++', '2'], ['Java', '4'], ['Python3', '11'], ['C', '39']]);
 
     /* ================= 加载 CSS 样式 ================= */
     function injectCSS(cssText) {
@@ -54,7 +52,6 @@
             }
         });
     }
-
     loadCSS();
 
     /* ================= 2. 构建 UI DOM ================= */
@@ -71,7 +68,7 @@
         <label><input type="checkbox" id="vj-lg" /> 洛谷</label>
     </div>
     <div class="vj-input-group">
-        <label><input type="checkbox" id="vj-nc" disabled/> 牛客(暂时取消)</label>
+        <label><input type="checkbox" id="vj-nc" /> 牛客</label>
     </div>
     <div class="vj-input-group">
         <label><input type="checkbox" id="vj-cf" /> CodeForces</label>
@@ -134,15 +131,15 @@
     });
 
     let isDragging = false;
-    let dragStart = {x: 0, y: 0};
-    let panelStart = {x: 0, y: 0};
+    let dragStart = { x: 0, y: 0 };
+    let panelStart = { x: 0, y: 0 };
 
     header.addEventListener('mousedown', (e) => {
         if (e.target === toggleBtn) return;
         isDragging = true;
-        dragStart = {x: e.clientX, y: e.clientY};
+        dragStart = { x: e.clientX, y: e.clientY };
         const rect = panel.getBoundingClientRect();
-        panelStart = {x: rect.left, y: rect.top};
+        panelStart = { x: rect.left, y: rect.top };
         header.style.cursor = 'grabbing';
         e.preventDefault();
     });
@@ -187,44 +184,44 @@
             const tasks = [];
             if (needLg) {
                 tasks.push(verifyAccount('洛谷').then(account => {
-                        if (account == null) log('❌未找到洛谷账号信息');
-                        else fetchLuogu(account.match(/\/user\/(\d+)/)[1]);
-                    })
+                    if (account == null) log('❌未找到洛谷账号信息');
+                    else fetchLuogu(account.match(/\/user\/(\d+)/)[1]);
+                })
                 );
             }
             if (needCf) {
                 tasks.push(verifyAccount('CodeForces').then(account => {
-                        if (account == null) log('❌未找到CodeForces账号信息');
-                        else fetchCodeForces(account.replace(/<[^>]*>/g, ''));
-                    })
+                    if (account == null) log('❌未找到CodeForces账号信息');
+                    else fetchCodeForces(account.replace(/<[^>]*>/g, ''));
+                })
                 );
             }
             if (needAtc) {
                 tasks.push(verifyAccount('AtCoder').then(account => {
-                        if (account == null) log('❌未找到AtCoder账号信息');
-                        else fetchAtCoder(account.replace(/<[^>]*>/g, ''));
-                    })
+                    if (account == null) log('❌未找到AtCoder账号信息');
+                    else fetchAtCoder(account.replace(/<[^>]*>/g, ''));
+                })
                 );
             }
             if (needQoj) {
                 tasks.push(verifyAccount('QOJ').then(account => {
-                        if (account == null) log('❌未找到QOJ账号信息');
-                        else fetchQOJ(account.replace(/<[^>]*>/g, ''));
-                    })
+                    if (account == null) log('❌未找到QOJ账号信息');
+                    else fetchQOJ(account.replace(/<[^>]*>/g, ''));
+                })
                 );
             }
             if (needNc) {
                 tasks.push(verifyAccount('牛客').then(account => {
-                        if (account == null) log('❌未找到牛客账号信息');
-                        else fetchNowCoder(account.match(/\/profile\/(\d+)/)[1]);
-                    })
+                    if (account == null) log('❌未找到牛客账号信息');
+                    else fetchNowCoder(account.match(/\/profile\/(\d+)/)[1]);
+                })
                 );
             }
             if (needUoj) {
                 tasks.push(verifyAccount('UniversalOJ').then(account => {
-                        if (account == null) log('❌未找到UOJ账号信息');
-                        else fetchUOJ(account.replace(/<[^>]*>/g, ''));
-                    })
+                    if (account == null) log('❌未找到UOJ账号信息');
+                    else fetchUOJ(account.replace(/<[^>]*>/g, ''));
+                })
                 );
             }
             Promise.all(tasks).finally(() => {
@@ -234,7 +231,6 @@
         });
     };
 
-    let nc_id;
     let vjArchived = {};
 
     function log(msg) {
@@ -242,6 +238,8 @@
         logBox.innerHTML += `<div>${msg}</div>`;
         logBox.scrollTop = logBox.scrollHeight;
     }
+
+    //*****业务逻辑*******
 
     function getVJudgeUsername() {
         const urlMatch = location.pathname.match(/\/user\/([^\/]+)/);
@@ -254,7 +252,10 @@
         return null;
     }
 
-    //检查vj登录状态
+    /**
+     * 
+     * 检查vj登录状态 
+     */
     function fetchVJudgeArchived(callback) {
         const username = getVJudgeUsername();
         if (!username) {
@@ -276,20 +277,18 @@
                     if (callback) callback();
                 } catch (err) {
                     log('获取VJ记录失败');
+                    console.log(err);
                     if (callback) callback();
                 }
             }
         });
     }
 
-    // --- 各个OJ的获取逻辑 ---
-    function fetchLuogu(user) {
-        log('🔄正在同步洛谷数据...');
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: `https://www.luogu.com.cn/user/${user}/practice`,
-            headers: {'X-Lentille-Request': 'content-only'},
-            onload: res => {
+    //获取各个oj数据
+    async function fetchLuogu(user) {
+        log('🔄正在获取洛谷数据...');
+        const headers= {'X-Lentille-Request': 'content-only'}
+        Get(`https://www.luogu.com.cn/user/${user}/practice`,headers).then(res => {
                 try {
                     const json = JSON.parse(res.responseText);
                     const passed = json?.data?.passed || [];
@@ -297,64 +296,49 @@
                     submitVJ('洛谷', pids);
                 } catch (err) {
                     log('洛谷数据解析失败');
-                    console.log(err)
+                    console.log('洛谷 '+err)
                 }
-            },
-            onerror: () => log('洛谷请求失败')
-        });
-    }
+            }).catch(() => log('洛谷请求失败'));
+    };
 
-    function fetchCodeForces(user) {
-        log('正在同步CF数据...');
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: `https://codeforces.com/api/user.status?handle=${user}`,
-            onload: res => {
-                try {
-                    const result = JSON.parse(res.responseText).result || [];
-                    const pids = result
-                        .filter(r => r.verdict === 'OK')
-                        .map(r => `${r.problem.contestId}${r.problem.index}`);
-                    const uniquePids = [...new Set(pids)];
-                    submitVJ('CodeForces', uniquePids);
-                } catch (err) {
-                    log('CF数据解析失败');
-                    console.log(err)
-                }
-            },
-            onerror: () => log('CF请求失败')
-        });
-    }
+    async function fetchCodeForces(user) {
+        log('🔄正在获取CF数据...');
+        Get(`https://codeforces.com/api/user.status?handle=${user}`).then(res => {
+            try {
+                const result = JSON.parse(res.responseText).result || [];
+                const pids = result
+                    .filter(r => r.verdict === 'OK')
+                    .map(r => `${r.problem.contestId}${r.problem.index}`);
+                const uniquePids = [...new Set(pids)];
+                submitVJ('CodeForces', uniquePids);
+            } catch (err) {
+                log('CF数据解析失败');
+                console.log(err)
+            }
+        }).catch(() => log('CF请求失败'));
+    };
 
     //数据来源:https://github.com/kenkoooo/AtCoderProblems
-    function fetchAtCoder(user) {
-        log('🔄正在同步AtCoder数据...');
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: `https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${user}&from_second=0`,
-            onload: res => {
-                try {
-                    const list = JSON.parse(res.responseText) || [];
-                    const pids = list
-                        .filter(r => r.result === 'AC')
-                        .map(r => `${r.problem_id}`);
-                    const uniquePids = [...new Set(pids)];
-                    submitVJ('AtCoder', uniquePids);
-                } catch (err) {
-                    log('ATC数据解析失败');
-                    console.log(err)
-                }
-            },
-            onerror: () => log('ATC请求失败')
-        });
-    }
+    async function fetchAtCoder(user) {
+        log('🔄正在获取AtCoder数据...');
+        Get(`https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${user}&from_second=0`).then(res => {
+            try {
+                const list = JSON.parse(res.responseText) || [];
+                const pids = list
+                    .filter(r => r.result === 'AC')
+                    .map(r => `${r.problem_id}`);
+                const uniquePids = [...new Set(pids)];
+                submitVJ('AtCoder', uniquePids);
+            } catch (err) {
+                log('ATC数据解析失败');
+                console.log(err)
+            }
+        }).catch(() => log('ATC请求失败'));
+    };
 
-    function fetchQOJ(user) {
-        log('🔄正在同步QOJ数据...');
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: `https://qoj.ac/user/profile/${user}`,
-            onload: res => {
+    async function fetchQOJ(user) {
+        log('🔄正在获取QOJ数据...');
+        Get(`https://qoj.ac/user/profile/${user}`).then(res => {
                 try {
                     const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
                     const pids = [];
@@ -364,17 +348,12 @@
                     log('QOJ解析失败');
                     console.log(err)
                 }
-            },
-            onerror: () => log('QOJ请求失败')
-        });
-    }
+            }).catch(() => log('QOJ请求失败'));
+    };
 
-    function fetchUOJ(user) {
-        log('🔄正在同步UOJ数据...');
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: `https://uoj.ac/user/profile/${user}`,
-            onload: res => {
+    async function fetchUOJ(user) {
+        log('🔄正在获取UOJ数据...');
+        Get(`https://uoj.ac/user/profile/${user}`).then(res => {
                 try {
                     const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
                     const pids = [];
@@ -387,62 +366,116 @@
                     log('UOJ解析失败');
                     console.log(err)
                 }
-            },
-            onerror: () => log('UOJ请求失败')
-        });
-    }
+            }).catch(() => log('UOJ请求失败'));
+    };
 
-    // 检查 VJudge 上是否已绑定指定 OJ 账号
-    function verifyAccount(oj) {
-        log(`🔄正在检查${oj}账号信息...`);
-        return new Promise((resolve) => {
-            GM_xmlhttpRequest({
-                method: 'GET',
-                url: `https://vjudge.net/user/verifiedAccount?oj=${oj}`,
-                onload: res => {
-                    try {
-                        const data = JSON.parse(res.responseText);
-                        const account = data && data.accountDisplay ? data.accountDisplay : null;
-                        resolve(account);
-                    } catch (err) {
-                        resolve(null);
-                    }
-                },
-                onerror: () => log(`${oj}请求失败`)
+    async function fetchNowCoder(user) {
+        log('🔄正在获取牛客数据...');
+        //获取总页数
+        try {
+            const fst = await Get(`https://ac.nowcoder.com/acm/contest/profile/${user}/practice-coding?pageSize=1&statusTypeFilter=5&page=1`);
+            const cnt = new DOMParser().parseFromString(fst.responseText, "text/html");
+            const totalPage = Math.ceil(Number(cnt.querySelector(".my-state-item .state-num")?.innerText) / 200);
+
+            //获取题目
+            let pids = [],tasks = [];
+            for (let i = 1; i <= totalPage; i++)
+                tasks.push(Get(`https://ac.nowcoder.com/acm/contest/profile/${user}/practice-coding?pageSize=200&statusTypeFilter=5&page=${i}`));
+
+            const passed = await Promise.all(tasks);
+            passed.forEach(res => {
+                try {
+                    const problems = getNcPids(res);
+                    pids = pids.concat(problems);
+                } catch (err) {
+                    log('NowCoder解析失败');
+                    console.log(err)
+                }
             });
-        });
+            // 去重，并发检查所有题目的权限
+            const preUniquePids = [...new Set(pids)];
+            const checkPromises = preUniquePids.map(async (id) => {
+                const res = await Get(`https://ac.nowcoder.com/acm/problem/${id}`);
+                const html = res.responseText || '';
+                if (html.includes('没有查看题目的权限哦')) return null;
+                return id;
+            });
+            const results = await Promise.all(checkPromises);
+            const uniquePids = results.filter(item => item !== null);
+            await submitVJ('牛客', uniquePids);
+        } catch (err) { log(err) }
     }
 
-    // --- 提交逻辑 ---
-    async function submitVJ(oj, pids) {
-        log(`${oj}:发现${pids.length} AC`);
-        const archivedSet = new Set(vjArchived[oj] || []);
-        const toSubmit = unarchivable_oj.has(oj)
-            ? pids.filter(p => !archivedSet.has(p.problemId))
-            : pids.filter(pid => !archivedSet.has(pid));
+    /**
+     * 检查所提交oj账号状态
+     * @param {oj} oj名 
+     * @returns 
+     */
+    async function verifyAccount(oj) {
+        log(`🔄正在检查${oj}账号信息...`);
+        try {
+            const check = await Get(`https://vjudge.net/user/checkAccount?oj=${oj}`);
+            const checkData = JSON.parse(check.responseText);
+            if (checkData?.result !== 'success') return null;
 
+            const verify = await Get(`https://vjudge.net/user/verifiedAccount?oj=${oj}`);
+            const verifyData = JSON.parse(verify.responseText);
+            const account = verifyData && verifyData.accountDisplay ? verifyData.accountDisplay : null;
+            return account;
+        } catch (err) {
+            log(`${oj}账号为空或cookie已失效`);
+            console.log(`${oj}请求失败`);
+            return null;
+        }
+    }
+
+    /**
+     * vj提交逻辑
+     * @param {*} oj 
+     * @param {*} pids 
+     * @returns 
+     */
+    async function submitVJ(oj, pids) {
+        const archivedSet = new Set(vjArchived[oj] || []);
+        const toSubmit = pids.filter(pid => !archivedSet.has(pid));
+        log(`${oj}:发现${toSubmit.length}未同步AC`);
         if (toSubmit.length === 0) {
             log(`✅${oj}: 所有题目已同步`);
             return;
         }
 
-        
         // 串行提交
         let successful = 0;
         for (let i = 0; i < toSubmit.length; i++) {
-            const problem = toSubmit[i];
-            await new Promise(resolve => setTimeout(resolve, i * 1000));
-            const key = `${oj}-${problem}`;
+            const problem = toSubmit[i], pid = `${oj}-${problem}`;
+            if (i > 0) await new Promise(resolve => setTimeout(resolve, 1000));
             try {
-                const resp = await fetch(`https://vjudge.net/problem/submit/${key}`, {
+                const resp = await fetch(`https://vjudge.net/problem/submit/${pid}`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: 'method=2&language=&open=0&source='
                 });
                 const result = await resp.json();
                 if (result?.runId) {
                     log(`✅${oj} ${problem} success`);
                     successful++;
+                } else if (result?.error?.includes('exists')) {
+                    log(`${oj} ${problem} 不存在, 尝试触发抓取并等待5秒重试...`);
+                    await Get(`https://vjudge.net/problem/data?length=1&OJId=${oj}&probNum=${problem}`);
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+
+                    const retryResp = await fetch(`https://vjudge.net/problem/submit/${pid}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'method=2&language=&open=0&source='
+                    });
+                    const retryResult = await retryResp.json();
+                    if (retryResult?.runId) {
+                        log(`✅${oj} ${problem} success (retry)`);
+                        successful++;
+                    } else {
+                        log(`❌${oj} ${problem} 重试失败: ${retryResult?.error || '未知错误'}`);
+                    }
                 } else {
                     log(`❌${oj} ${problem} failed:\n ${result.error}`);
                 }
@@ -453,42 +486,41 @@
         log(`🌟${oj}: 同步完成，更新 ${successful} 题`);
     }
 
-    //不能归档的oj专用函数(目前只有牛客)
-    // const headers = {cookie: 't=23D4F038EFBB4D806311285491E06B25'}; //人机cookie
-    // function ncGet(url) {
-    //     return new Promise((resolve, reject) => {
-    //         GM_xmlhttpRequest({
-    //             method: 'GET', url, headers,
-    //             onload: res => resolve(res),
-    //             onerror: err => reject(err),
-    //         });
-    //     });
-    // }
+    /**
+     * 统一的get方法
+     * @param {*} url 
+     * @param {*} headers 
+     * @returns 
+     */
+    async function Get(url,headers=null) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                headers: headers,
+                url: url,
+                onload: (res) => resolve(res),
+                onerror: (err) => reject(err)
+            });
+        });
+    }
 
-    function getNcDetail(data) {
+    /**
+     * 牛客专用，用于获取ac情况
+     * @param {*} data 
+     * @returns 
+     */
+    function getNcPids(data) {
         const result = [];
         const doc = new DOMParser().parseFromString(data.responseText, "text/html");
         doc.querySelectorAll("table.table-hover tbody tr").forEach(tr => {
             const tds = tr.querySelectorAll("td");
             if (tds.length < 8) return;
-            const submitId = tds[0].innerText.trim();
             const problemLink = tds[1].querySelector("a")?.getAttribute("href") || "";
             const problemId = problemLink.split("/").pop();
-            const language = language_map.get(tds[7].innerText.trim());
-            result.push({problemId, submitId, language});
+            result.push(problemId);
         });
         return result;
     }
-
-    function getNcCode(html) {
-        const re = /<pre[^>]*>([\s\S]*?)<\/pre>/i;
-        const match = html.match(re);
-        if (!match) return '';
-        const origCode = match[1];
-        return origCode
-            .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
-            .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-    }
 }
 )
-();
+    ();

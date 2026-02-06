@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body style="margin: 0; padding: 0; width: 300px;">
+    <div id="vj-sync-popup">
+        <div id="vj-sync-header">
+            <div class="header-title">
+                <img src="../../icons/icon.png" class="logo-img" alt="logo">
+                <span>VJのAC自动机</span>
+            </div>
+            <div class="header-actions">
+                <button id="vj-pin-btn" title="固定窗口" class="icon-btn">📌</button>
+                <div class="version">v1.0.0-beta</div>
+            </div>
+        </div>
+        
+        <div id="vj-sync-body">
+            <div class="tip-section">
+                <i class="icon-info">ℹ️</i>
+                <span>同步前请确保已在 VJ 绑定相应 OJ 账号</span>
+            </div>
+
+            <div class="oj-grid">
+                <label class="oj-item">
+                    <input type="checkbox" id="vj-lg" />
+                    <span class="oj-name">洛谷 (Luogu)</span>
+                </label>
+                <label class="oj-item">
+                    <input type="checkbox" id="vj-nc" />
+                    <span class="oj-name">牛客 (NowCoder)</span>
+                </label>
+                <label class="oj-item">
+                    <input type="checkbox" id="vj-cf" />
+                    <span class="oj-name">CodeForces</span>
+                </label>
+                <label class="oj-item">
+                    <input type="checkbox" id="vj-atc" />
+                    <span class="oj-name">AtCoder</span>
+                </label>
+                <label class="oj-item">
+                    <input type="checkbox" id="vj-qoj" />
+                    <span class="oj-name">QOJ</span>
+                </label>
+                <label class="oj-item">
+                    <input type="checkbox" id="vj-uoj" />
+                    <span class="oj-name">UOJ</span>
+                </label>
+            </div>
+
+            <div class="actions">
+                <button id="vj-sync-btn" class="btn btn-primary">一键同步 AC 记录</button>
+                <button id="vj-autofill-btn" class="btn btn-secondary">填充 Cookie</button>
+            </div>
+
+            <div id="vj-sync-log"></div>
+        </div>
+    </div>
+    <script src="../content/auto-sync.js"></script>
+    <script src="../content/auto-fill.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>
