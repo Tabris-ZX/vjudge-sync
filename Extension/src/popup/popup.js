@@ -19,7 +19,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('mode') === 'window') {
         pinBtn.style.display = 'none';
-        document.body.style.width = '340px'; // 窗口模式下稍微宽一点
+        document.body.style.width = '300px'; // 窗口模式下稍微宽一点
     }
 
     pinBtn.onclick = () => {
@@ -27,8 +27,8 @@
         chrome.windows.create({
             url: url,
             type: 'popup',
-            width: 360,
-            height: 600
+            width: 320,
+            height: 580
         });
         window.close(); // 关闭当前的 popup 气泡
     };

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VJudge-Sync",
-  "version": "1.0.0-beta",
+  "version": "1.0.0",
   "description": "VJudge 一键同步归档已绑定的oj过题记录,目前支持洛谷,牛客,cf,atc,qoj,uoj",
   "author": "Tabris_ZX",
   "permissions": [
