@@ -206,7 +206,7 @@ async function fetchNowCoder(user, log) {
 
         const preUniquePids = [...new Set(pids)];
         const checkPromises = preUniquePids.map(async (id) => {
-            const res = await Fetch(`https://ac.nowcoder.com/acm/problem/${id}`);
+            const res = await Fetch(`https://ac.nowcoder.com/acm/problem/${id}`, { credentials: 'omit' });
             const html = res.responseText || '';
             if (html.includes('没有查看题目的权限哦')) return null;
             return id;

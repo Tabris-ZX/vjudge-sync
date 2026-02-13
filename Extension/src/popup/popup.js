@@ -27,7 +27,7 @@
         chrome.windows.create({
             url: url,
             type: 'popup',
-            width: 320,
+            width: 330,
             height: 580
         });
         window.close(); // 关闭当前的 popup 气泡

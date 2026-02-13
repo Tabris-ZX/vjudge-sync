@@ -1,7 +1,7 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'FETCH') {
     const { url, options } = request;
-    fetch(url, { ...options, credentials: 'include' })
+    fetch(url, { credentials: 'include', ...options })
       .then(async (response) => {
         const text = await response.text();
         sendResponse({

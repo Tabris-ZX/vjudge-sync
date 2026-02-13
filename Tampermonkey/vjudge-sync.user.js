@@ -395,7 +395,7 @@
             // 去重，并发检查所有题目的权限
             const preUniquePids = [...new Set(pids)];
             const checkPromises = preUniquePids.map(async (id) => {
-                const res = await Get(`https://ac.nowcoder.com/acm/problem/${id}`);
+                const res = await Get(`https://ac.nowcoder.com/acm/problem/${id}`,null,true);
                 const html = res.responseText || '';
                 if (html.includes('没有查看题目的权限哦')) return null;
                 return id;
@@ -417,7 +417,6 @@
             const check = await Get(`https://vjudge.net/user/checkAccount?oj=${oj}`);
             const checkData = JSON.parse(check.responseText);
             if (checkData?.result !== 'success') return null;
-
             const verify = await Get(`https://vjudge.net/user/verifiedAccount?oj=${oj}`);
             const verifyData = JSON.parse(verify.responseText);
             const account = verifyData && verifyData.accountDisplay ? verifyData.accountDisplay : null;
@@ -492,11 +491,12 @@
      * @param {*} headers 
      * @returns 
      */
-    async function Get(url,headers=null) {
+    async function Get(url,headers=null,anonymous=false) {
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: 'GET',
                 headers: headers,
+                anonymous: anonymous,
                 url: url,
                 onload: (res) => resolve(res),
                 onerror: (err) => reject(err)
