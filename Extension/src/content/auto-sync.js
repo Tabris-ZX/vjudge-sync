@@ -1,23 +1,18 @@
 
-/* ================= 1. 跨域请求处理 ================= */
+/* ================= 跨域请求处理 ================= */
 async function Fetch(url, options = {}) {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({ type: 'FETCH', url, options }, (response) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else if (response.error) {
-                reject(new Error(response.error));
-            } else {
-                resolve(response);
-            }
+            if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+            else if (response.error) reject(new Error(response.error));
+            else resolve(response);
         });
     });
 }
 
-/* ================= 2. 业务逻辑状态 ================= */
 let vjArchived = {};
 
-/* ================= 3. 同步核心函数 ================= */
+/* ================= 同步核心函数 ================= */
 
 async function fetchVJudgeArchived(username, log) {
     if (!username) {
@@ -33,27 +28,31 @@ async function fetchVJudgeArchived(username, log) {
         log(`VJudge已AC ${total} 题`);
         return true;
     } catch (err) {
-        log('获取VJ记录失败');
-        console.error(err);
+        log('获取 VJ 记录失败',err);
         return false;
     }
 }
 
-async function verifyAccount(oj, log) {
+async function verifyAccount(oj,log) {
     log(`🔄正在检查${oj}账号信息...`);
     try {
-        const checkRes = await Fetch(`https://vjudge.net/user/checkAccount?oj=${oj}`);
-        const checkData = JSON.parse(checkRes.responseText);
-        if (checkData?.result !== 'success') {
-            log(`${oj} 账号未绑定或检测失败`, 'error');
-            return null;
-        }
-
-        const verifyRes = await Fetch(`https://vjudge.net/user/verifiedAccount?oj=${oj}`);
+        const verifyRes = await Fetch(`https://vjudge.net/user/remoteAccounts/list?oj=${oj}`);
         const verifyData = JSON.parse(verifyRes.responseText);
-        return verifyData && verifyData.accountDisplay ? verifyData.accountDisplay : null;
+        if(Object.keys(verifyData.groups).length < 1) return null;
+        const bid = verifyData.groups[oj]['defaultBinding'].id;
+        console.log(bid);
+        const check = await Fetch(`https://vjudge.net/user/remoteAccounts/check`,{
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bindingId: bid})
+            });
+            console.log(check.responseText);
+        const checkData = JSON.parse(check.responseText);
+        if(checkData.success) return verifyData.groups[oj]['defaultBinding']['accountId'];
+        else return null;
     } catch (err) {
-        log(`${oj}账号为空或cookie已失效`);
+        log(`${oj}账号为空或cookie已失效`,err);
+        console.log(err);
         return null;
     }
 }
@@ -66,14 +65,13 @@ async function submitVJ(oj, pids, log) {
         log(`✅${oj}: 所有题目已同步`);
         return;
     }
-
-    let successful = 0;
+    let success_cnt = 0;
     for (let i = 0; i < toSubmit.length; i++) {
         const problem = toSubmit[i];
         const pid = `${oj}-${problem}`;
         
         // 固定的 1 秒延时，防止请求频率过高
-        if (i > 0) await new Promise(resolve => setTimeout(resolve, 1000));
+        if (i > 0) await new Promise(resolve => setTimeout(resolve, 500));
         
         try {
             const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, {
@@ -82,10 +80,11 @@ async function submitVJ(oj, pids, log) {
                 body: 'method=2&language=&open=0&source='
             });
             const result = JSON.parse(resp.responseText);
+             console.log(result);
             if (result?.runId) {
                 log(`✅${oj} ${problem} success`);
-                successful++;
-            } else if (result?.error?.includes('exist')) {
+                success_cnt++;
+            } else if (result.error?.i18nKey?.includes('not_found')) {
                 log(`${oj} ${problem} 不存在, 尝试触发抓取并等待5秒重试...`);
                 // 这里的 pid 在 VJudge 接口中通常是 OJ-ProblemId 格式，例如 Luogu-P1001
                 await Fetch(`https://vjudge.net/problem/data?length=1&OJId=${oj}&probNum=${problem}`);
@@ -100,19 +99,19 @@ async function submitVJ(oj, pids, log) {
                 const retryResult = JSON.parse(retryResp.responseText);
                 if (retryResult?.runId) {
                     log(`✅${oj} ${problem} success (retry)`);
-                    successful++;
+                    success_cnt++;
                 } else {
                     log(`❌${oj} ${problem} 重试失败: ${retryResult?.error || '未知错误'}`);
                 }
-            } else {
-                log(`❌${oj} ${problem} failed:\n ${result.error}`);
-            }
+            } else log(`❌${oj} ${problem} failed:\n ${result.error.i18nKey}`);
         } catch (err) {
             log(`❌${oj} ${problem} error: \n${err.message}`);
+            console.error(err);
+           
             return;
         }
     }
-    log(`🌟${oj}: 同步完成，更新 ${successful} 题`);
+    log(`🌟${oj}: 同步完成，更新 ${success_cnt} 题`);
 }
 
 // --- 各个 OJ 获取数据逻辑 ---
@@ -145,13 +144,19 @@ async function fetchCodeForces(user, log) {
 async function fetchAtCoder(user, log) {
     log('🔄正在获取AtCoder数据...');
     try {
-        const res = await Fetch(`https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${user}&from_second=0`);
-        const list = JSON.parse(res.responseText) || [];
-        const pids = list
-            .filter(r => r.result === 'AC')
-            .map(r => `${r.problem_id}`);
-        const uniquePids = [...new Set(pids)];
-        await submitVJ('AtCoder', uniquePids, log);
+        const pids = new Set();
+        let fromSecond = 0;
+        while (true) {
+            const res = await Fetch(`https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${user}&from_second=${fromSecond}`);
+            const list = JSON.parse(res.responseText) || [];
+            list
+                .filter(r => r.result === 'AC')
+                .forEach(r => pids.add(r.problem_id));
+            const lastEpoch = list[list.length - 1]?.epoch_second;
+            if (list.length <= 10 || !lastEpoch || lastEpoch - 1 >= fromSecond) break;
+            fromSecond = lastEpoch - 1;
+        }
+        await submitVJ('AtCoder', [...pids], log);
     } catch (err) { log('ATC数据解析失败'); }
 }
 

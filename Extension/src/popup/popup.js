@@ -35,15 +35,12 @@
 
     /* ================= 2. 获取 VJudge 用户名 ================= */
     async function getVJudgeTab() {
-        // 尝试获取当前激活的 VJudge 标签页
+        // 1. 查当前窗口激活的
         const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (activeTab?.url && (activeTab.url.includes('vjudge.net') || activeTab.url.includes('vjudge.net.cn'))) {
-            return activeTab;
-        }
+        if (activeTab?.url?.match(/vjudge\.net/)) return activeTab;
 
-        // 如果当前页不是 VJudge（例如在小窗模式下），则搜索所有窗口中的 VJudge 标签页
         const tabs = await chrome.tabs.query({ url: ["*://vjudge.net/*", "*://vjudge.net.cn/*"] });
-        return tabs.length > 0 ? tabs[0] : null;
+        return tabs[0] || null;
     }
 
     async function getVJudgeUsername() {
@@ -53,13 +50,10 @@
         const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: () => {
-                const urlMatch = location.pathname.match(/\/user\/([^\/]+)/);
+                const userElement = document.getElementById('userNameDropdown');
+                if (userElement) return userElement.innerText.trim();
                 if (urlMatch) return urlMatch[1];
-                const userLink = document.querySelector('a[href^="/user/"]');
-                if (userLink) {
-                    const match = userLink.getAttribute('href').match(/\/user\/([^\/]+)/);
-                    if (match) return match[1];
-                }
+
                 return null;
             }
         });
@@ -82,6 +76,7 @@
     });
 
     /* ================= 4. 按钮事件 ================= */
+
     syncBtn.onclick = async function () {
         const username = await getVJudgeUsername();
         if (!username) {
@@ -93,7 +88,7 @@
         syncBtn.textContent = '正在同步中...';
         logBox.innerHTML = '';
         log('开始同步 VJudge 数据...', 'info');
-        try{
+        try {
             const success = await fetchVJudgeArchived(username, (msg) => log(msg, 'info'));
             if (!success) {
                 log('获取 VJudge 归档失败', 'error');
@@ -104,33 +99,39 @@
 
             // 顺序执行各个 OJ 的同步任务，避免并发过高导致卡顿或失败
             if (document.getElementById('vj-lg').checked) {
-                const acc = await verifyAccount('洛谷', log);
-                if (acc) await fetchLuogu(acc.match(/\/user\/(\d+)/)[1], log);
+                const acc = await verifyAccount('洛谷',log);
+                if (acc) await fetchLuogu(acc,log);
+                else log('洛谷账号为空或cookie已失效', 'info');
             }
             
             if (document.getElementById('vj-nc').checked) {
-                const acc = await verifyAccount('牛客', log);
-                if (acc) await fetchNowCoder(acc.match(/\/profile\/(\d+)/)[1], log);
+                const acc = await verifyAccount('牛客',log);
+                if (acc) await fetchNowCoder(acc,log);
+                else log('牛客账号为空或cookie已失效', 'info');
             }
 
             if (document.getElementById('vj-cf').checked) {
-                const acc = await verifyAccount('CodeForces', log);
-                if (acc) await fetchCodeForces(acc.replace(/<[^>]*>/g, ''), log);
+                const acc = await verifyAccount('CodeForces',log);
+                if (acc) await fetchCodeForces(acc,log);
+                else log('CodeForces账号为空或cookie已失效', 'info');
             }
 
             if (document.getElementById('vj-atc').checked) {
-                const acc = await verifyAccount('AtCoder', log);
-                if (acc) await fetchAtCoder(acc.replace(/<[^>]*>/g, ''), log);
+                const acc = await verifyAccount('AtCoder',log);
+                if (acc) await fetchAtCoder(acc, log);
+                else log('AtCoder账号为空或cookie已失效', 'info');
             }
 
             if (document.getElementById('vj-qoj').checked) {
-                const acc = await verifyAccount('QOJ', log);
-                if (acc) await fetchQOJ(acc.replace(/<[^>]*>/g, ''), log);
+                const acc = await verifyAccount('QOJ',log);
+                if (acc) await fetchQOJ(acc,log);
+                else log('QOJ账号为空或cookie已失效', 'info');
             }
 
             if (document.getElementById('vj-uoj').checked) {
-                const acc = await verifyAccount('UniversalOJ', log);
-                if (acc) await fetchUOJ(acc.replace(/<[^>]*>/g, ''), log);
+                const acc = await verifyAccount('UniversalOJ',log);
+                if (acc) await fetchUOJ(acc,log) ;
+                else log('UniversalOJ 账号为空或cookie已失效', 'info');
             }
 
             log('所有同步任务已完成！', 'success');
