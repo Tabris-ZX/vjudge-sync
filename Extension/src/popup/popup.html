@@ -14,15 +14,14 @@
                 <span>VJのAC自动机</span>
             </div>
             <div class="header-actions">
-                <div class="version">v1.1.0-beta</div>
+                <div class="version">v1.2.1-beta</div>
                 <button id="vj-pin-btn" title="固定窗口" class="icon-btn">📌</button>
             </div>
         </div>
 
         <div id="vj-sync-body">
-            <div class="tip-section" style="display: flex; flex-direction: column; text-align: center;">
-                <div>💬💡🎈</div>
-                <div>同步前请确保已在VJ绑定相应 OJ 账号哦~</div>
+            <div class="tip-section">
+                <div>💬💡🎈同步前请确保已绑定相应OJ账号哦~</div>
             </div>
 
             <div class="oj-grid">
@@ -55,6 +54,15 @@
             <div class="actions">
                 <button id="vj-sync-btn" class="btn btn-primary">一键同步 AC 记录</button>
                 <button id="vj-autofill-btn" class="btn btn-secondary">填充 Cookie</button>
+                <button id="vj-speed-btn" class="btn btn-tertiary" type="button">调节同步速率</button>
+            </div>
+
+            <div id="vj-speed-panel" class="speed-panel speed-panel-hidden">
+                <div class="speed-panel-title">
+                    <span>提交间隔</span>
+                    <span id="vj-speed-value">1000 ms/题</span>
+                </div>
+                <input type="range" id="vj-speed-range" min="500" max="5000" step="100" value="1000" />
             </div>
 
             <div id="vj-sync-log"></div>

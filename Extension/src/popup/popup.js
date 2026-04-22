@@ -5,6 +5,28 @@
     const syncBtn = document.getElementById('vj-sync-btn');
     const autofillBtn = document.getElementById('vj-autofill-btn');
     const pinBtn = document.getElementById('vj-pin-btn');
+    const speedBtn = document.getElementById('vj-speed-btn');
+    const speedPanel = document.getElementById('vj-speed-panel');
+    const speedRange = document.getElementById('vj-speed-range');
+    const speedValue = document.getElementById('vj-speed-value');
+    const SYNC_DELAY_KEY = 'sync_delay_ms';
+    const DEFAULT_SYNC_DELAY = 1000;
+    const MIN_SYNC_DELAY = 500;
+    const MAX_SYNC_DELAY = 5000;
+
+    function normalizeSyncDelay(value) {
+        const delay = Number(value);
+        if (!Number.isFinite(delay)) return DEFAULT_SYNC_DELAY;
+        return Math.min(MAX_SYNC_DELAY, Math.max(MIN_SYNC_DELAY, Math.round(delay / 100) * 100));
+    }
+
+    function updateSpeedView(value) {
+        const delay = normalizeSyncDelay(value);
+        speedRange.value = delay;
+        speedValue.textContent = `${delay} ms/题`;
+        if (typeof setSyncDelay === 'function') setSyncDelay(delay);
+        return delay;
+    }
 
     /* ================= 1. UI 日志处理 ================= */
     function log(msg, type = 'info') {
@@ -62,7 +84,7 @@
     /* ================= 3. 状态恢复与保存 ================= */
 
     const ojs = ['vj-lg', 'vj-cf', 'vj-atc', 'vj-qoj', 'vj-nc', 'vj-uoj'];
-    const storage = await chrome.storage.local.get(ojs.map(id => id + '_checked'));
+    const storage = await chrome.storage.local.get([...ojs.map(id => id + '_checked'), SYNC_DELAY_KEY]);
 
     ojs.forEach(id => {
         const el = document.getElementById(id);
@@ -72,6 +94,18 @@
         el.addEventListener('change', (e) => {
             chrome.storage.local.set({ [id + '_checked']: e.target.checked });
         });
+    });
+
+    updateSpeedView(storage[SYNC_DELAY_KEY]);
+
+    speedBtn.onclick = () => {
+        speedPanel.classList.toggle('speed-panel-hidden');
+        speedBtn.textContent = speedPanel.classList.contains('speed-panel-hidden') ? '调节同步速率' : '收起速率设置';
+    };
+
+    speedRange.addEventListener('input', async (e) => {
+        const delay = updateSpeedView(e.target.value);
+        await chrome.storage.local.set({ [SYNC_DELAY_KEY]: delay });
     });
 
     /* ================= 按钮事件 ================= */
@@ -87,6 +121,7 @@
         syncBtn.textContent = '正在同步中...';
         logBox.innerHTML = '';
         log('开始同步 VJudge 数据...', 'info');
+        log(`当前提交间隔: ${getSyncDelay()} ms/题`, 'info');
         try {
             const success = await fetchVJudgeArchived(username, (msg) => log(msg, 'info'));
             if (!success) {
