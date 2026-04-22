@@ -183,42 +183,42 @@
         fetchVJudgeArchived(() => {
             const tasks = [];
             if (needLg) {
-                tasks.push(verifyAccount('洛谷').then(account => {
+                tasks.push(checkAccount('洛谷').then(account => {
                     if (account == null) log('❌未找到洛谷账号信息');
                     else fetchLuogu(account.match(/\/user\/(\d+)/)[1]);
                 })
                 );
             }
             if (needCf) {
-                tasks.push(verifyAccount('CodeForces').then(account => {
+                tasks.push(checkAccount('CodeForces').then(account => {
                     if (account == null) log('❌未找到CodeForces账号信息');
                     else fetchCodeForces(account.replace(/<[^>]*>/g, ''));
                 })
                 );
             }
             if (needAtc) {
-                tasks.push(verifyAccount('AtCoder').then(account => {
+                tasks.push(checkAccount('AtCoder').then(account => {
                     if (account == null) log('❌未找到AtCoder账号信息');
                     else fetchAtCoder(account.replace(/<[^>]*>/g, ''));
                 })
                 );
             }
             if (needQoj) {
-                tasks.push(verifyAccount('QOJ').then(account => {
+                tasks.push(checkAccount('QOJ').then(account => {
                     if (account == null) log('❌未找到QOJ账号信息');
                     else fetchQOJ(account.replace(/<[^>]*>/g, ''));
                 })
                 );
             }
             if (needNc) {
-                tasks.push(verifyAccount('牛客').then(account => {
+                tasks.push(checkAccount('牛客').then(account => {
                     if (account == null) log('❌未找到牛客账号信息');
                     else fetchNowCoder(account.match(/\/profile\/(\d+)/)[1]);
                 })
                 );
             }
             if (needUoj) {
-                tasks.push(verifyAccount('UniversalOJ').then(account => {
+                tasks.push(checkAccount('UniversalOJ').then(account => {
                     if (account == null) log('❌未找到UOJ账号信息');
                     else fetchUOJ(account.replace(/<[^>]*>/g, ''));
                 })
@@ -411,7 +411,7 @@
      * @param {oj} oj名 
      * @returns 
      */
-    async function verifyAccount(oj) {
+    async function checkAccount(oj) {
         log(`🔄正在检查${oj}账号信息...`);
         try {
             const check = await Get(`https://vjudge.net/user/checkAccount?oj=${oj}`);

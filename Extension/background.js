@@ -57,7 +57,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 function fillCookies(cookies) {
 	try {
-		// 找到页面上所有带有 'data-vjudge-helper-autofill="cookie"' 属性的输入框
 		const inputs = document.querySelectorAll('input[data-vjudge-helper-autofill="cookie"]');
 
 		inputs.forEach(input => {
@@ -67,7 +66,7 @@ function fillCookies(cookies) {
 			if (cookie) {
 				input.value = cookie.value;
 				input.dispatchEvent(new Event('input', { bubbles: true }));
-			}
+			}else alert(`未找到 Cookie,请先在此浏览器登录一次`);
 		});
 
 		function getCookie(cookies, domain, name) {
@@ -75,7 +74,6 @@ function fillCookies(cookies) {
 				const cDomain = cookie.domain.replace(/^\./, '');
 				const tDomain = domain.replace(/^\./, '');
 				if (cookie.name === name && cDomain === tDomain) return cookie;
-
 			}
 			return null;
 		}
