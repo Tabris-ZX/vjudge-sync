@@ -31,7 +31,7 @@ async function fetchVJudgeArchived(username, log) {
         vjArchived = json.acRecords || {};
         let total = 0;
         for (let k in vjArchived) total += vjArchived[k].length;
-        log(`VJudge已AC ${total} 题`);
+        log(`VJudge 已同步 ${total} 题`);
         return true;
     } catch (err) {
         log('获取 VJ 记录失败');
