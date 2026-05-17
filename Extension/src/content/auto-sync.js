@@ -59,6 +59,10 @@ async function checkAccount(oj, log) {
         if (Object.keys(verifyData.groups).length < 1) return null;
         const bid = verifyData.groups[oj]['defaultBinding'].id;
         console.log(bid);
+        if (verifyData.groups[oj]['defaultBinding'].runtimeStatus !== "READY"){
+            log(`❌ ${oj} 账号状态异常, 请检查账号是否已绑定`);
+            return null;
+        }
         const check = await Fetch(`https://vjudge.net/user/remoteAccounts/check`, {
             method: 'POST', body: JSON.stringify({ bindingId: bid }),
             headers: { 'Content-Type': 'application/json' },
@@ -66,7 +70,10 @@ async function checkAccount(oj, log) {
         console.log(check.responseText);
         const checkData = JSON.parse(check.responseText);
         if (checkData.success) return verifyData.groups[oj]['defaultBinding']['accountId'];
-        else return null;
+        else {
+            log(`❌ ${oj} 账号验证失败: ${checkData.error}`);
+            return null;
+        }
     } catch (err) {
         log(`❌ ${oj} 账号为空或cookie已失效`);
         return null;
