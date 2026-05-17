@@ -1,9 +1,9 @@
 
 //配置项
 let vjArchived = {};
-const DEFAULT_SYNC_DELAY = 1000;
-const MIN_SYNC_DELAY = 500;
-const MAX_SYNC_DELAY = 5000;
+const DEFAULT_SYNC_DELAY = 10000;
+const MIN_SYNC_DELAY = 5000;
+const MAX_SYNC_DELAY = 30000;
 let syncDelay = DEFAULT_SYNC_DELAY;
 let syncBody = {
     method: 'POST',

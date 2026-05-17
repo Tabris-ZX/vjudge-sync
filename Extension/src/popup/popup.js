@@ -10,9 +10,9 @@
     const speedRange = document.getElementById('vj-speed-range');
     const speedValue = document.getElementById('vj-speed-value');
     const SYNC_DELAY_KEY = 'sync_delay_ms';
-    const DEFAULT_SYNC_DELAY = 1000;
-    const MIN_SYNC_DELAY = 500;
-    const MAX_SYNC_DELAY = 5000;
+    const DEFAULT_SYNC_DELAY = 10000;
+    const MIN_SYNC_DELAY = 5000;
+    const MAX_SYNC_DELAY = 30000;
 
     function normalizeSyncDelay(value) {
         const delay = Number(value);
@@ -23,7 +23,7 @@
     function updateSpeedView(value) {
         const delay = normalizeSyncDelay(value);
         speedRange.value = delay;
-        speedValue.textContent = `${delay} ms/题`;
+        speedValue.textContent = `${delay / 1000} 秒/题`;
         if (typeof setSyncDelay === 'function') setSyncDelay(delay);
         return delay;
     }
@@ -121,7 +121,7 @@
         syncBtn.textContent = '正在同步中...';
         logBox.innerHTML = '';
         log('开始同步 VJudge 数据...', 'info');
-        log(`当前提交间隔: ${getSyncDelay()} ms/题`, 'info');
+        log(`当前提交间隔: ${getSyncDelay() / 1000} 秒/题`, 'info');
         try {
             const success = await fetchVJudgeArchived(username, (msg) => log(msg, 'info'));
             if (!success) {
