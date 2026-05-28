@@ -653,6 +653,7 @@
     async function fetchNowCoder(user) {
         log('💡正在获取牛客数据...');
         try {
+            /*
             const fst = await Fetch(`https://ac.nowcoder.com/acm/contest/profile/${encodeURIComponent(user)}/practice-coding?pageSize=1&statusTypeFilter=5&page=1`);
             const cnt = new DOMParser().parseFromString(fst.responseText, 'text/html');
             const totalPage = Math.ceil(Number(cnt.querySelector('.my-state-item .state-num')?.innerText) / 200);
@@ -684,6 +685,20 @@
             });
             const finalResults = await Promise.all(checkPromises);
             const uniquePids = finalResults.filter(item => item !== null);
+            */
+
+            const res = await Fetch('https://ac.nowcoder.com/acm/problem/list/json?status=ac&page=1&pageSize=1');
+            let data;
+            try {
+                data = JSON.parse(res.responseText);
+            } catch (parseErr) {
+                log(`牛客 JSON.parse 失败: ${parseErr.message}`, 'error');
+                const normalizedText = (res.responseText || '').replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3');
+                data = JSON.parse(normalizedText);
+            }
+            const statusMap = data.data?.statusMap || {};
+            const uniquePids = Object.keys(statusMap);
+            log(`✅ 牛客获取成功，共 ${uniquePids.length} 题`);
             await submitVJ('牛客', uniquePids);
         } catch (err) {
             log('牛客获取数据失败', 'error');

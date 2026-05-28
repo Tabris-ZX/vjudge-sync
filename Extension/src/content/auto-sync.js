@@ -209,6 +209,18 @@ async function fetchUOJ(user, log) {
 async function fetchNowCoder(user, log) {
     log('💡正在获取牛客数据...');
     try {
+        const res = await Fetch(`https://ac.nowcoder.com/acm/problem/list/json?status=ac&page=1&pageSize=1`);
+        const normalizedText = (res.responseText || '').replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3');
+        const data = JSON.parse(normalizedText);
+        const statusMap = data.data?.statusMap || {};
+        const uniquePids = Object.keys(statusMap);
+        
+        log(`✅ 牛客获取成功，共 ${uniquePids.length} 题`);
+        await submitVJ('牛客', uniquePids, log);
+    } catch (err) { log('牛客获取数据失败'); }
+}
+
+/*临时
         const fst = await Fetch(`https://ac.nowcoder.com/acm/contest/profile/${user}/practice-coding?pageSize=1&statusTypeFilter=5&page=1`);
         const cnt = new DOMParser().parseFromString(fst.responseText, "text/html");
         const totalPage = Math.ceil(Number(cnt.querySelector(".my-state-item .state-num")?.innerText) / 200);
@@ -240,7 +252,4 @@ async function fetchNowCoder(user, log) {
         });
         const finalResults = await Promise.all(checkPromises);
         const uniquePids = finalResults.filter(item => item !== null);
-        await submitVJ('牛客', uniquePids, log);
-
-    } catch (err) { log('牛客获取数据失败'); }
-}
+        */
