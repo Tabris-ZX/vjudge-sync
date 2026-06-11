@@ -601,7 +601,7 @@
                 const list = JSON.parse(res.responseText) || [];
                 list.filter(r => r.result === 'AC').forEach(r => pids.add(r.problem_id));
                 const lastEpoch = list[list.length - 1]?.epoch_second;
-                if (list.length <= 10 || !lastEpoch || lastEpoch - 1 >= fromSecond) break;
+                if (list.length <= 10 || !lastEpoch || lastEpoch - 1 <= fromSecond) break;
                 fromSecond = lastEpoch - 1;
             }
             await submitVJ('AtCoder', [...pids]);
