@@ -39,9 +39,29 @@ jobs:
           )
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-          files: |
-            dist/vjudge-sync-extension-*.zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCHIVE="dist/vjudge-sync-extension-v${VERSION}.zip"
+
+          cat > release-notes.md <<EOF
+          ## VJudge-Sync v${VERSION}
+
+          本发行版仅包含 Chromium 浏览器扩展。
+
+          ### 安装方式
+
+          1. 下载并解压 \`vjudge-sync-extension-v${VERSION}.zip\`。
+          2. 打开浏览器扩展管理页面。
+          3. 开启开发者模式。
+          4. 选择“加载已解压的扩展程序”，然后选择解压目录。
+
+          油猴脚本请前往 [Greasy Fork](https://greasyfork.org/zh-CN/scripts/559149) 单独安装。
+          EOF
+
+          gh release create "$GITHUB_REF_NAME" "$ARCHIVE" \
+            --verify-tag \
+            --title "VJudge-Sync v${VERSION}" \
+            --notes-file release-notes.md
