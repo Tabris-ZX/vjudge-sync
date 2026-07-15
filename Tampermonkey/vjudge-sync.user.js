@@ -1,13 +1,17 @@
 // ==UserScript==
 // @name         VJudge-Sync
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
-// @version      2.3.2
-// @description  VJudge 一键同步归档已绑定的 OJ 过题记录，并支持同步速率调节
+// @version      2.3.3
+// @description  VJudge 一键同步归档已绑定的 OJ 过题记录，并支持生涯报告导出和同步速率调节
 // @author       Tabris_ZX
 // @match        https://vjudge.net/*
 // @match        https://vjudge.net.cn/*
+// @require      https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js
+// @require      https://cdn.jsdelivr.net/gh/Tabris-ZX/vjudge-sync@main/Extension/src/content/career-image.js
+// @resource     careerCSS https://cdn.jsdelivr.net/gh/Tabris-ZX/vjudge-sync@main/Extension/assets/career-report.css
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
+// @grant        GM_getResourceText
 // @connect      vjudge.net
 // @connect      vjudge.net.cn
 // @connect      luogu.com.cn
@@ -204,6 +208,11 @@
     color: white;
 }
 
+#vj-career-btn {
+    background: #222725;
+    color: white;
+}
+
 #vj-speed-btn {
     background: #f3f4f6;
     color: #1f2937;
@@ -308,6 +317,7 @@
 
     <div class="vj-actions">
         <button id="vj-sync-btn" class="vj-btn">一键同步 AC 记录</button>
+        <button id="vj-career-btn" class="vj-btn">生涯详情</button>
         <button id="vj-speed-btn" class="vj-btn" type="button">调节同步速率</button>
     </div>
 
@@ -322,12 +332,19 @@
     <div id="vj-sync-log"></div>
 </div>`;
     document.body.appendChild(panel);
+    try {
+        const careerStyle = GM_getResourceText('careerCSS');
+        if (careerStyle) GM_addStyle(careerStyle);
+    } catch (err) {
+        console.error('生涯报告样式加载失败', err);
+    }
 
     const header = document.getElementById('vj-sync-header');
     const toggleBtn = document.getElementById('vj-toggle-btn');
     const content = document.getElementById('vj-sync-body');
     const logBox = document.getElementById('vj-sync-log');
     const syncBtn = document.getElementById('vj-sync-btn');
+    const careerBtn = document.getElementById('vj-career-btn');
     const speedBtn = document.getElementById('vj-speed-btn');
     const speedPanel = document.getElementById('vj-speed-panel');
     const speedRange = document.getElementById('vj-speed-range');
@@ -723,6 +740,34 @@
         }
     }
 
+    careerBtn.addEventListener('click', async () => {
+        careerBtn.disabled = true;
+        syncBtn.disabled = true;
+        careerBtn.textContent = '正在生成...';
+        logBox.innerHTML = '';
+
+        try {
+            const username = getVJudgeUsername();
+            if (!username) throw new Error('请先打开并登录 VJudge');
+            if (typeof globalThis.CareerImage?.downloadCareerReport !== 'function') {
+                throw new Error('生涯图片组件未加载');
+            }
+
+            log('正在整理生涯过题数据...', 'info');
+            const success = await fetchVJudgeArchived(username);
+            if (!success) throw new Error('获取 VJudge 归档失败');
+
+            const summary = await globalThis.CareerImage.downloadCareerReport(username, vjArchived);
+            log(`生涯图片已下载：${summary.total} 题 / ${summary.ojCount} 个 OJ`, 'success');
+        } catch (err) {
+            log(`生涯图片生成失败：${err.message}`, 'error');
+        } finally {
+            careerBtn.disabled = false;
+            syncBtn.disabled = false;
+            careerBtn.textContent = '生涯详情';
+        }
+    });
+
     syncBtn.addEventListener('click', async () => {
         const username = getVJudgeUsername();
         if (!username) {
@@ -731,6 +776,7 @@
         }
 
         syncBtn.disabled = true;
+        careerBtn.disabled = true;
         syncBtn.textContent = '正在同步中...';
         logBox.innerHTML = '';
         log('开始同步 VJudge 数据...', 'info');
@@ -770,6 +816,7 @@
             log(`同步发生错误: ${err.message}`, 'error');
         } finally {
             syncBtn.disabled = false;
+            careerBtn.disabled = false;
             syncBtn.textContent = '一键同步 AC 记录';
         }
     });

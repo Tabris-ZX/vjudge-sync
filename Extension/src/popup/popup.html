@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="../../assets/career-report.css">
 </head>
 
 <body style="margin: 0; padding: 0; width: 300px;">
@@ -52,8 +53,9 @@
             </div>
 
             <div class="actions">
-                <button id="vj-sync-btn" class="btn btn-primary">一键同步 AC 记录</button>
+                <button id="vj-sync-btn" class="btn btn-primary">一键同步AC记录</button>
                 <button id="vj-autofill-btn" class="btn btn-secondary">填充 Cookie</button>
+                <button id="vj-career-btn" class="btn btn-career">生涯详情</button>
                 <button id="vj-speed-btn" class="btn btn-tertiary" type="button">调节同步速率</button>
             </div>
 
@@ -70,6 +72,8 @@
     </div>
     <script src="../content/oj-api.js"></script>
     <script src="../content/auto-sync.js"></script>
+    <script src="../../vendor/html2canvas.min.js"></script>
+    <script src="../content/career-image.js"></script>
     <script src="../content/auto-fill.js"></script>
     <script src="popup.js"></script>
 </body>

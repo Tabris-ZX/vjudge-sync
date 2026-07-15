@@ -1,0 +1,293 @@
+.career-report,
+.career-report * {
+    box-sizing: border-box;
+}
+
+.career-report {
+    width: 1200px;
+    padding: 64px;
+    color: #171815;
+    background: #f2f2d5;
+    font-family: "Arial Narrow", "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    font-size: 18px;
+    line-height: 1.45;
+}
+
+.career-report__signal {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 270px;
+    height: 12px;
+    margin-bottom: 28px;
+}
+
+.career-report__signal span {
+    display: block;
+    height: 100%;
+    background: #171815;
+}
+
+.career-report__signal span:nth-child(1) {
+    width: 42px;
+    background: #e85d19;
+}
+
+.career-report__signal span:nth-child(2) {
+    width: 118px;
+}
+
+.career-report__signal span:nth-child(3) {
+    width: 72px;
+    background: #e85d19;
+}
+
+.career-report__eyebrow,
+.career-report__mono {
+    font-family: Consolas, "SFMono-Regular", monospace;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.career-report__eyebrow {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.career-report__hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr);
+    gap: 42px;
+    margin-top: 22px;
+    align-items: end;
+}
+
+.career-report__title {
+    margin: 0;
+    font-size: 90px;
+    line-height: .88;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.career-report__title-accent {
+    color: #e85d19;
+}
+
+.career-report__identity {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 3px solid #171815;
+}
+
+.career-report__user {
+    margin: 0 0 6px;
+    font-size: 34px;
+    line-height: 1.1;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.career-report__muted {
+    color: #5c6055;
+}
+
+.career-report__total {
+    min-height: 300px;
+    padding: 34px;
+    color: #f2f2d5;
+    background: #171815;
+    border: 4px solid #171815;
+    border-right: 12px solid #e85d19;
+    border-bottom: 12px solid #e85d19;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.career-report__total-value {
+    margin: 10px 0;
+    font-size: 122px;
+    line-height: .9;
+    font-weight: 900;
+}
+
+.career-report__section {
+    margin-top: 70px;
+}
+
+.career-report__section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 4px solid #171815;
+}
+
+.career-report__section-title {
+    margin: 0;
+    font-size: 36px;
+    line-height: 1;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.career-report__section-code {
+    padding: 6px 10px;
+    color: #f2f2d5;
+    background: #171815;
+    font: 700 13px Consolas, monospace;
+}
+
+.career-report__metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+}
+
+.career-report__metric {
+    min-height: 150px;
+    padding: 22px;
+    background: #fafae9;
+    border: 3px solid #171815;
+    border-right-width: 9px;
+    border-bottom-width: 9px;
+}
+
+.career-report__metric-value {
+    margin: 8px 0 18px;
+    font-size: 42px;
+    line-height: 1;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+}
+
+.career-report__metric-value--compact {
+    font-size: 30px;
+    line-height: 1.1;
+}
+
+.career-report__metric-label {
+    color: #62665b;
+    font: 700 13px Consolas, monospace;
+    text-transform: uppercase;
+}
+
+.career-report__matrix {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+}
+
+.career-report__oj {
+    position: relative;
+    min-height: 220px;
+    padding: 26px 28px 24px;
+    background: #fffef0;
+    border: 3px solid #171815;
+    border-right-width: 11px;
+    border-bottom-width: 11px;
+    overflow: hidden;
+}
+
+.career-report__oj::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 100%;
+    background: repeating-linear-gradient(-45deg, #e85d19 0 5px, #fffef0 5px 10px);
+}
+
+.career-report__oj-head {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+}
+
+.career-report__rank {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fffef0;
+    background: #171815;
+    font: 800 15px Consolas, monospace;
+}
+
+.career-report__oj-name {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.1;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+}
+
+.career-report__oj-count {
+    color: #e85d19;
+    font-size: 36px;
+    line-height: 1;
+    font-weight: 900;
+    text-align: right;
+}
+
+.career-report__bar {
+    height: 12px;
+    margin: 22px 0 18px;
+    background: #d9d9c4;
+    border: 2px solid #171815;
+}
+
+.career-report__bar-fill {
+    height: 100%;
+    background: #e85d19;
+}
+
+.career-report__oj-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #5c6055;
+    font: 700 13px Consolas, monospace;
+    text-transform: uppercase;
+}
+
+.career-report__problems {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 18px;
+}
+
+.career-report__problem {
+    padding: 4px 7px;
+    background: #e7e7d1;
+    border: 1px solid #9a9d8e;
+    font: 600 12px Consolas, "Microsoft YaHei", monospace;
+}
+
+.career-report__problem--more {
+    color: #fffef0;
+    background: #171815;
+    border-color: #171815;
+}
+
+.career-report__footer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    margin-top: 76px;
+    padding-top: 22px;
+    border-top: 4px solid #171815;
+    font: 700 13px Consolas, monospace;
+    text-transform: uppercase;
+}
+
+.career-report__footer span:last-child {
+    color: #e85d19;
+}

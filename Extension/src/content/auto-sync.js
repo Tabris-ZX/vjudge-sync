@@ -51,6 +51,10 @@ async function fetchVJudgeArchived(username, log) {
     }
 }
 
+function getVJudgeArchivedRecords() {
+    return vjArchived;
+}
+
 async function checkAccount(oj, log) {
     log(`💡正在检查${oj}账号信息...`);
     try {

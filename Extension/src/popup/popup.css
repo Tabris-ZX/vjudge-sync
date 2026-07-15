@@ -156,6 +156,16 @@
     transform: translateY(-1px);
 }
 
+.btn-career {
+    background: #222725;
+    color: white;
+}
+
+.btn-career:hover {
+    background: #111513;
+    transform: translateY(-1px);
+}
+
 .btn-secondary {
     background: var(--secondary-color);
     color: white;

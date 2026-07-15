@@ -22,9 +22,9 @@ Continuously updating...
 - [x] Auto-fill cookies
 - [x] Browser extension version
 - [x] Customizable sync rate
+- [x] Career accepted-problem report export
 
 - [ ] vj-better
-- [ ] One-click career data chart export
 - [ ] Simplified problem set / contest creation
 - [ ] Problem tag organization
 

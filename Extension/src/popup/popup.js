@@ -3,6 +3,7 @@
 
     const logBox = document.getElementById('vj-sync-log');
     const syncBtn = document.getElementById('vj-sync-btn');
+    const careerBtn = document.getElementById('vj-career-btn');
     const autofillBtn = document.getElementById('vj-autofill-btn');
     const pinBtn = document.getElementById('vj-pin-btn');
     const speedBtn = document.getElementById('vj-speed-btn');
@@ -78,6 +79,7 @@
             func: () => {
                 const userElement = document.getElementById('userNameDropdown');
                 if (userElement) return userElement.innerText.trim();
+                const urlMatch = location.pathname.match(/\/user\/([^/]+)/);
                 if (urlMatch) return urlMatch[1];
                 return null;
             }
@@ -114,6 +116,34 @@
 
     /* ================= 按钮事件 ================= */
 
+    careerBtn.onclick = async function () {
+        careerBtn.disabled = true;
+        syncBtn.disabled = true;
+        careerBtn.textContent = '正在生成...';
+        logBox.innerHTML = '';
+
+        try {
+            const username = await getVJudgeUsername();
+            if (!username) throw new Error('请先打开并登录 VJudge');
+
+            log('正在整理生涯过题数据...', 'info');
+            const success = await fetchVJudgeArchived(username, (msg) => log(msg, 'info'));
+            if (!success) throw new Error('获取 VJudge 归档失败');
+
+            const summary = await CareerImage.downloadCareerReport(
+                username,
+                getVJudgeArchivedRecords()
+            );
+            log(`生涯图片已下载：${summary.total} 题 / ${summary.ojCount} 个 OJ`, 'success');
+        } catch (err) {
+            log(`生涯图片生成失败：${err.message}`, 'error');
+        } finally {
+            careerBtn.disabled = false;
+            syncBtn.disabled = false;
+            careerBtn.textContent = '生涯详情';
+        }
+    };
+
     syncBtn.onclick = async function () {
         const username = await getVJudgeUsername();
         if (!username) {
@@ -122,6 +152,7 @@
         }
 
         syncBtn.disabled = true;
+        careerBtn.disabled = true;
         syncBtn.textContent = '正在同步中...';
         logBox.innerHTML = '';
         log('开始同步 VJudge 数据...', 'info');
@@ -171,6 +202,7 @@
             log(`同步发生错误: ${err.message}`, 'error');
         } finally {
             syncBtn.disabled = false;
+            careerBtn.disabled = false;
             syncBtn.textContent = '一键同步 AC 记录';
         }
     };

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VJudge-Sync",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "VJudge 一键同步归档已绑定的oj过题记录,目前支持大部分主流OJ",
   "author": "Tabris_ZX",
   "permissions": [
