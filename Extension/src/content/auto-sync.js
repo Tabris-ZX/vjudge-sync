@@ -1,9 +1,9 @@
 
 //配置项
 let vjArchived = {};
-const DEFAULT_SYNC_DELAY = 10000;
+const DEFAULT_SYNC_DELAY = 8000;
 const MIN_SYNC_DELAY = 5000;
-const MAX_SYNC_DELAY = 30000;
+const MAX_SYNC_DELAY = 20000;
 let syncDelay = DEFAULT_SYNC_DELAY;
 let syncBody = {
     method: 'POST',
@@ -99,7 +99,7 @@ async function submitVJ(oj, pids, log) {
                 log(`🎈 ${oj} ${problem} success`);
                 success_cnt++;
             } else if (result.error?.i18nKey?.includes('not_found')) {
-                log(`${oj} ${problem} 不存在, 尝试抓取并等待6秒重试...`);
+                log(`❗${oj} ${problem} 不存在, 尝试抓取并等待6秒重试...`);
                 // 这里的 pid 是 VJudge 中 OJ-ProblemId 格式，例如 Luogu-P1001
                 await Fetch(`https://vjudge.net/problem/data?length=1&OJId=${oj}&probNum=${problem}`);
                 console.debug(oj+' '+problem)
@@ -113,7 +113,10 @@ async function submitVJ(oj, pids, log) {
                     log(`🎈 ${oj} ${problem} success (retry)`);
                     success_cnt++;
                 } else log(`❌${oj} ${problem} 重试失败: ${result.error.i18nKey}`);
-            } else log(`❌${oj} ${problem} failed:\n ${result.error.i18nKey}`);
+            } else if (result.error?.i18nKey?.includes('own_account')){
+                log(`❗${oj} 未在VJ绑定账号`);
+            }
+            else log(`❌${oj} ${problem} failed:\n ${result.error.i18nKey}`);
         } catch (err) {
             log(`❌${oj} ${problem} error: \n${err.message}`);
             console.error(err);
@@ -127,80 +130,41 @@ async function submitVJ(oj, pids, log) {
 async function fetchLuogu(user, log) {
     log('💡正在获取洛谷数据...');
     try {
-        const res = await Fetch(`https://www.luogu.com.cn/user/${user}/practice`,{headers:{'X-Lentille-Request':'content-only'}});
-        const json = JSON.parse(res.responseText);
-        const passed = json?.data?.passed || [];
-        const pids = passed.map(x => x.pid);
+        const pids = await OJApi.getLuoguAccepted(user);
         await submitVJ('洛谷', pids, log);
-
     } catch (err) { log('洛谷数据解析失败'); }
 }
 
 async function fetchCodeForces(user, log) {
     log('💡正在获取CF数据...');
     try {
-        const res = await Fetch(`https://codeforces.com/api/user.status?handle=${user}`);
-        const result = JSON.parse(res.responseText).result || [];
-        const pids = result.filter(r => r.verdict === 'OK')
-            .map(r => `${r.problem.contestId}${r.problem.index}`);
-        const uniquePids = [...new Set(pids)];
-        await submitVJ('CodeForces', uniquePids, log);
-
+        const pids = await OJApi.getCodeForcesAccepted(user);
+        await submitVJ('CodeForces', pids.CodeForces, log);
+        await submitVJ('Gym', pids.Gym, log);
+        await submitVJ('SGU', pids.SGU, log);
     } catch (err) { log('CF数据解析失败'); }
 }
 
 async function fetchAtCoder(user, log) {
     log('💡正在获取AtCoder数据...');
     try {
-        const pids = new Set();
-        let fromSecond = 0;
-        while (true) {
-            const res = await Fetch(`https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${user}&from_second=${fromSecond}`);
-            const list = JSON.parse(res.responseText) || [];
-            list.filter(r => r.result === 'AC').forEach(r => pids.add(r.problem_id));
-            const lastEpoch = list[list.length - 1]?.epoch_second;
-            if (list.length <= 10 || !lastEpoch || lastEpoch - 1 <= fromSecond) break;
-            fromSecond = lastEpoch - 1;
-        }
-        await submitVJ('AtCoder', [...pids], log);
-
+        const pids = await OJApi.getAtCoderAccepted(user);
+        await submitVJ('AtCoder', pids, log);
     } catch (err) { log('ATC数据解析失败'); }
 }
 
 async function fetchQOJ(user, log) {
     log('💡正在获取QOJ数据...');
     try {
-        const res = await Fetch(`https://qoj.ac/user/profile/${user}`);
-        const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
-        const pids = [];
-
-        const headings = doc.querySelectorAll('h4.list-group-item-heading');
-        headings.forEach(h4 => {
-            if (h4.textContent.includes('AC 过的题目')) {
-                const p = h4.nextElementSibling;
-                if (p && p.classList.contains('list-group-item-text')) {
-                    p.querySelectorAll('a').forEach(a => {
-                        const pid = a.textContent.trim();
-                        if (pid) pids.push(pid);
-                    });
-                }
-            }
-        });
+        const pids = await OJApi.getQOJAccepted(user);
         await submitVJ('QOJ', pids, log);
-
     } catch (err) { log('QOJ解析失败'); }
 }
 
 async function fetchUOJ(user, log) {
     log('💡正在获取UOJ数据...');
     try {
-        const res = await Fetch(`https://uoj.ac/user/profile/${user}`);
-        const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
-        const pids = [];
-        doc.querySelectorAll('ul.uoj-ac-problems-list li a').forEach(a => {
-            const match = a.getAttribute('href').match(/\/problem\/(\d+)/);
-            if (match) pids.push(match[1]);
-        });
+        const pids = await OJApi.getUOJAccepted(user);
         await submitVJ('UniversalOJ', pids, log);
     } catch (err) { log('UOJ解析失败'); }
 }
@@ -208,13 +172,8 @@ async function fetchUOJ(user, log) {
 async function fetchNowCoder(user, log) {
     log('💡正在获取牛客数据...');
     try {
-        const res = await Fetch(`https://ac.nowcoder.com/acm/problem/list/json?status=ac&page=1&pageSize=1`);
-        const normalizedText = (res.responseText || '').replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3');
-        const data = JSON.parse(normalizedText);
-        const statusMap = data.data?.statusMap || {};
-        const uniquePids = Object.keys(statusMap);
-        
-        log(`✅ 牛客获取成功，共 ${uniquePids.length} 题`);
-        await submitVJ('牛客', uniquePids, log);
+        const pids = await OJApi.getNowCoderAccepted(user);
+        log(`✅ 牛客获取成功，共 ${pids.length} 题`);
+        await submitVJ('牛客', pids, log);
     } catch (err) { log('牛客获取数据失败'); }
 }

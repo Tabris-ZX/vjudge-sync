@@ -45,12 +45,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // 监听标签页更新事件
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 	if (changeInfo.status === 'complete' && tab.url) {
-		const active = tab.url.includes("vjudge.net") || tab.url.includes("vjudge.net.cn");
 		chrome.action.setIcon({
 			tabId: tabId,
-			path: {
-				"48": active ? "images/color_icon.png" : "images/gray_icon.png"
-			}
+			path: "assets/icon.png"
 		});
 	}
 });

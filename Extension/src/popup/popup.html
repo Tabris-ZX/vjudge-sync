@@ -10,11 +10,11 @@
     <div id="vj-sync-popup">
         <div id="vj-sync-header">
             <div class="header-title">
-                <img src="../../icons/icon.png" class="logo-img" alt="logo">
+                <img src="../../assets/icon.png" class="logo-img" alt="logo">
                 <span>VJのAC自动机</span>
             </div>
             <div class="header-actions">
-                <div class="version">v1.2.1-beta</div>
+                <div id="vj-version" class="version"></div>
                 <button id="vj-pin-btn" title="固定窗口" class="icon-btn">📌</button>
             </div>
         </div>
@@ -60,14 +60,15 @@
             <div id="vj-speed-panel" class="speed-panel speed-panel-hidden">
                 <div class="speed-panel-title">
                     <span>提交间隔</span>
-                    <span id="vj-speed-value">10 秒/题</span>
+                    <span id="vj-speed-value">8 秒/题</span>
                 </div>
-                <input type="range" id="vj-speed-range" min="5000" max="30000" step="1000" value="10000" />
+                <input type="range" id="vj-speed-range" min="5000" max="20000" step="1000" value="8000" />
             </div>
 
             <div id="vj-sync-log"></div>
         </div>
     </div>
+    <script src="../content/oj-api.js"></script>
     <script src="../content/auto-sync.js"></script>
     <script src="../content/auto-fill.js"></script>
     <script src="popup.js"></script>

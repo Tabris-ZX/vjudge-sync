@@ -9,10 +9,14 @@
     const speedPanel = document.getElementById('vj-speed-panel');
     const speedRange = document.getElementById('vj-speed-range');
     const speedValue = document.getElementById('vj-speed-value');
+    const version = document.getElementById('vj-version');
+    const manifest = chrome.runtime.getManifest();
     const SYNC_DELAY_KEY = 'sync_delay_ms';
-    const DEFAULT_SYNC_DELAY = 10000;
+    const DEFAULT_SYNC_DELAY = 8000;
     const MIN_SYNC_DELAY = 5000;
-    const MAX_SYNC_DELAY = 30000;
+    const MAX_SYNC_DELAY = 20000;
+
+    version.textContent = `v${manifest.version_name || manifest.version}`;
 
     function normalizeSyncDelay(value) {
         const delay = Number(value);

@@ -14,7 +14,7 @@ Continuously updating...
 ## Current Features
 
 - [x] Luogu
-- [x] Codeforces
+- [x] Codeforces (including Gym and SGU)
 - [x] AtCoder
 - [x] QOJ
 - [x] UOJ

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VJudge-Sync
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
-// @version      2.3.1
+// @version      2.3.2
 // @description  VJudge 一键同步归档已绑定的 OJ 过题记录，并支持同步速率调节
 // @author       Tabris_ZX
 // @match        https://vjudge.net/*
@@ -26,9 +26,9 @@
 
     if (!/vjudge\.net(\.cn)?$/.test(location.hostname)) return;
 
-    const DEFAULT_SYNC_DELAY = 1000;
+    const DEFAULT_SYNC_DELAY = 8000;
     const MIN_SYNC_DELAY = 500;
-    const MAX_SYNC_DELAY = 5000;
+    const MAX_SYNC_DELAY = 20000;
     const SYNC_DELAY_KEY = 'sync_delay_ms';
     const PANEL_POS_KEY = 'vj_panel_pos';
     const PANEL_COLLAPSED_KEY = 'vj_panel_collapsed';
@@ -314,9 +314,9 @@
     <div id="vj-speed-panel" class="vj-hidden">
         <div class="vj-speed-panel-title">
             <span>提交间隔</span>
-            <span id="vj-speed-value">1000 ms/题</span>
+            <span id="vj-speed-value">8 秒/题</span>
         </div>
-        <input type="range" id="vj-speed-range" min="500" max="5000" step="100" value="1000" />
+        <input type="range" id="vj-speed-range" min="500" max="20000" step="100" value="8000" />
     </div>
 
     <div id="vj-sync-log"></div>
@@ -351,7 +351,7 @@
     function updateSpeedView(value) {
         const delay = setSyncDelay(value);
         speedRange.value = delay;
-        speedValue.textContent = `${delay} ms/题`;
+        speedValue.textContent = `${delay / 1000} 秒/题`;
         return delay;
     }
 
@@ -584,8 +584,26 @@
         try {
             const res = await Fetch(`https://codeforces.com/api/user.status?handle=${encodeURIComponent(user)}`);
             const result = JSON.parse(res.responseText).result || [];
-            const pids = result.filter(r => r.verdict === 'OK').map(r => `${r.problem.contestId}${r.problem.index}`);
-            await submitVJ('CodeForces', [...new Set(pids)]);
+            const pids = {
+                CodeForces: new Set(),
+                Gym: new Set(),
+                SGU: new Set()
+            };
+
+            result.filter(r => r.verdict === 'OK').forEach(({ problem }) => {
+                if (!problem?.index) return;
+                if (problem.problemsetName?.toLowerCase() === 'acmsguru') {
+                    pids.SGU.add(problem.index);
+                } else if (problem.contestId >= 100000) {
+                    pids.Gym.add(`${problem.contestId}${problem.index}`);
+                } else if (problem.contestId != null) {
+                    pids.CodeForces.add(`${problem.contestId}${problem.index}`);
+                }
+            });
+
+            await submitVJ('CodeForces', [...pids.CodeForces]);
+            await submitVJ('Gym', [...pids.Gym]);
+            await submitVJ('SGU', [...pids.SGU]);
         } catch (err) {
             log('CF数据解析失败', 'error');
         }
@@ -716,7 +734,7 @@
         syncBtn.textContent = '正在同步中...';
         logBox.innerHTML = '';
         log('开始同步 VJudge 数据...', 'info');
-        log(`当前提交间隔: ${getSyncDelay()} ms/题`, 'info');
+        log(`当前提交间隔: ${getSyncDelay() / 1000} 秒/题`, 'info');
 
         try {
             const success = await fetchVJudgeArchived(username);

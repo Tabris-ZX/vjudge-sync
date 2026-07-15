@@ -15,7 +15,7 @@
 ## 当前支持的功能
 
 - [x] 洛谷
-- [x] Codeforces
+- [x] Codeforces(包含 Gym 和 SGU)
 - [x] AtCoder
 - [x] QOJ
 - [x] UOJ
@@ -26,7 +26,6 @@
 
 todo:
 
-- [ ] Gym
 - [ ] 一键导出生涯数据图
 - [ ] 简化题单/比赛创建
 - [ ] 题目标签归纳
