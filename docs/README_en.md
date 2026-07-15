@@ -43,13 +43,13 @@ Continuously updating...
 **Tampermonkey script version:**  
 (Currently unavailable after changes to VJudge's API structure. The browser extension version is recommended.)
 
-![](doc/panel.png)
+![](docs/panel.png)
 
 **Browser extension version:**  
 (Supports Chromium-based browsers)
 - Note: Click the pin icon in the upper-right corner of the popup to enter **window mode**. In this mode, synchronization will not be interrupted when switching tabs.
 
-![](doc/popup.png)
+![](docs/popup.png)
 
 ### One-click Cookie Auto-fill
 **You can also fill cookies on VJudge with one click.**
@@ -58,7 +58,7 @@ Continuously updating...
 2. Click **Account Management**, then after the page redirects, choose **Browser Session**, and click the **Fill Cookie** button in the popup to auto-fill cookies. (Window mode is not supported for this feature.)
 3. If used incorrectly, nothing will happen.
 
-![](doc/auto-fill.png)
+![](docs/auto-fill.png)
 
 ## Download
 

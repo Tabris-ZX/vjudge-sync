@@ -58,7 +58,6 @@ async function checkAccount(oj, log) {
         const verifyData = JSON.parse(verifyRes.responseText);
         if (Object.keys(verifyData.groups).length < 1) return null;
         const bid = verifyData.groups[oj]['defaultBinding'].id;
-        console.log(bid);
         if (verifyData.groups[oj]['defaultBinding'].runtimeStatus !== "READY"){
             log(`❌ ${oj} 账号状态异常, 请检查账号是否已绑定`);
             return null;
@@ -67,7 +66,6 @@ async function checkAccount(oj, log) {
             method: 'POST', body: JSON.stringify({ bindingId: bid }),
             headers: { 'Content-Type': 'application/json' },
         });
-        console.log(check.responseText);
         const checkData = JSON.parse(check.responseText);
         if (checkData.success) return verifyData.groups[oj]['defaultBinding']['accountId'];
         else {
@@ -97,7 +95,6 @@ async function submitVJ(oj, pids, log) {
         try {
             const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, syncBody);
             const result = JSON.parse(resp.responseText);
-            console.log(result);
             if (result?.runId) {
                 log(`🎈 ${oj} ${problem} success`);
                 success_cnt++;
@@ -105,15 +102,17 @@ async function submitVJ(oj, pids, log) {
                 log(`${oj} ${problem} 不存在, 尝试抓取并等待6秒重试...`);
                 // 这里的 pid 是 VJudge 中 OJ-ProblemId 格式，例如 Luogu-P1001
                 await Fetch(`https://vjudge.net/problem/data?length=1&OJId=${oj}&probNum=${problem}`);
+                console.debug(oj+' '+problem)
                 await new Promise(resolve => setTimeout(resolve, 6000));
 
                 // 再次尝试提交
                 const retryResp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, syncBody);
                 const retryResult = JSON.parse(retryResp.responseText);
+                console.info(retryResult)
                 if (retryResult?.runId) {
                     log(`🎈 ${oj} ${problem} success (retry)`);
                     success_cnt++;
-                } else log(`❌${oj} ${problem} 重试失败: ${retryResult?.error}`);
+                } else log(`❌${oj} ${problem} 重试失败: ${result.error.i18nKey}`);
             } else log(`❌${oj} ${problem} failed:\n ${result.error.i18nKey}`);
         } catch (err) {
             log(`❌${oj} ${problem} error: \n${err.message}`);
@@ -219,37 +218,3 @@ async function fetchNowCoder(user, log) {
         await submitVJ('牛客', uniquePids, log);
     } catch (err) { log('牛客获取数据失败'); }
 }
-
-/*临时
-        const fst = await Fetch(`https://ac.nowcoder.com/acm/contest/profile/${user}/practice-coding?pageSize=1&statusTypeFilter=5&page=1`);
-        const cnt = new DOMParser().parseFromString(fst.responseText, "text/html");
-        const totalPage = Math.ceil(Number(cnt.querySelector(".my-state-item .state-num")?.innerText) / 200);
-
-        let pids = [], tasks = [];
-        for (let i = 1; i <= totalPage; i++) {
-            tasks.push(Fetch(`https://ac.nowcoder.com/acm/contest/profile/${user}/practice-coding?pageSize=200&statusTypeFilter=5&page=${i}`));
-        }
-
-        const results = await Promise.all(tasks);
-        results.forEach(res => {
-            const doc = new DOMParser().parseFromString(res.responseText, "text/html");
-            doc.querySelectorAll("table.table-hover tbody tr").forEach(tr => {
-                const tds = tr.querySelectorAll("td");
-                if (tds.length < 8) return;
-                const problemLink = tds[1].querySelector("a")?.getAttribute("href") || "";
-                const problemId = problemLink.split("/").pop();
-                pids.push(problemId);
-            });
-        });
-
-        const preUniquePids = [...new Set(pids)];
-        const checkPromises = preUniquePids.map(async (id) => {
-            //无cookie检查
-            const res = await Fetch(`https://ac.nowcoder.com/acm/problem/${id}`, { credentials: 'omit' });
-            const html = res.responseText || '';
-            if (html.includes('没有查看题目的权限哦')) return null;
-            return id;
-        });
-        const finalResults = await Promise.all(checkPromises);
-        const uniquePids = finalResults.filter(item => item !== null);
-        */
