@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate versions
+        shell: bash
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          MANIFEST_VERSION="$(jq -r '.version' Extension/manifest.json)"
+
+          test "$TAG_VERSION" = "$MANIFEST_VERSION" || {
+            echo "Tag and manifest versions differ: $TAG_VERSION != $MANIFEST_VERSION"
+            exit 1
+          }
+
+      - name: Build release files
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+
+          (
+            cd Extension
+            zip -r "../dist/vjudge-sync-extension-v${VERSION}.zip" .
+          )
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/vjudge-sync-extension-*.zip
