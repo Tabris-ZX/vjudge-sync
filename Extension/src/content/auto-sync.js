@@ -58,22 +58,24 @@ function getVJudgeArchivedRecords() {
 async function checkAccount(oj, log) {
     log(`💡正在检查${oj}账号信息...`);
     try {
+        //检查oj是否绑定
         const verifyRes = await Fetch(`https://vjudge.net/user/remoteAccounts/list?oj=${oj}`);
         const verifyData = JSON.parse(verifyRes.responseText);
-        if (Object.keys(verifyData.groups).length < 1) return null;
-        const bid = verifyData.groups[oj]['defaultBinding'].id;
-        if (verifyData.groups[oj]['defaultBinding'].runtimeStatus !== "READY"){
+        if (Object.keys(verifyData['groups']).length < 1) return null;
+        const bid = verifyData['groups'][oj]['bindings'][0].id;
+        if (verifyData['groups'][oj]['bindings'][0].runtimeStatus !== "READY"){
             log(`❌ ${oj} 账号状态异常, 请检查账号是否已绑定`);
             return null;
         }
+        //检查cookie可用性
         const check = await Fetch(`https://vjudge.net/user/remoteAccounts/check`, {
             method: 'POST', body: JSON.stringify({ bindingId: bid }),
             headers: { 'Content-Type': 'application/json' },
         });
         const checkData = JSON.parse(check.responseText);
-        if (checkData.success) return verifyData.groups[oj]['defaultBinding']['accountId'];
+        if (checkData.success) return verifyData['groups'][oj]['bindings'][0].accountId;
         else {
-            log(`❌ ${oj} 账号验证失败: ${checkData.error}`);
+            log(`❌ ${oj} 账号验证失败: ${checkData.errorKey}`);
             return null;
         }
     } catch (err) {
@@ -99,6 +101,8 @@ async function submitVJ(oj, pids, log) {
         try {
             const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, syncBody);
             const result = JSON.parse(resp.responseText);
+            
+            console.log(result);
             if (result?.runId) {
                 log(`🎈 ${oj} ${problem} success`);
                 success_cnt++;
@@ -106,7 +110,6 @@ async function submitVJ(oj, pids, log) {
                 log(`❗${oj} ${problem} 不存在, 尝试抓取并等待6秒重试...`);
                 // 这里的 pid 是 VJudge 中 OJ-ProblemId 格式，例如 Luogu-P1001
                 await Fetch(`https://vjudge.net/problem/data?length=1&OJId=${oj}&probNum=${problem}`);
-                console.debug(oj+' '+problem)
                 await new Promise(resolve => setTimeout(resolve, 6000));
 
                 // 再次尝试提交
@@ -117,13 +120,14 @@ async function submitVJ(oj, pids, log) {
                     log(`🎈 ${oj} ${problem} success (retry)`);
                     success_cnt++;
                 } else log(`❌${oj} ${problem} 重试失败: ${result.error.i18nKey}`);
-            } else if (result.error?.i18nKey?.includes('own_account')){
-                log(`❗${oj} 未在VJ绑定账号`);
             }
+            // else if (result.error?.i18nKey?.includes('own_account')){
+            //     log(`❗${oj} 未在VJ绑定账号`);
+            // }
             else log(`❌${oj} ${problem} failed:\n ${result.error.i18nKey}`);
         } catch (err) {
             log(`❌${oj} ${problem} error: \n${err.message}`);
-            console.error(err);
+            console.log(err);
             return;
         }
     }

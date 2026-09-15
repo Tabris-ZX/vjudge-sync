@@ -2,16 +2,12 @@
 // @name         VJudge-Sync
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
 // @version      2.3.3
-// @description  VJudge 一键同步归档已绑定的 OJ 过题记录，并支持生涯报告导出和同步速率调节
+// @description  VJudge 一键同步归档已绑定的 OJ 过题记录，并支持同步速率调节
 // @author       Tabris_ZX
 // @match        https://vjudge.net/*
 // @match        https://vjudge.net.cn/*
-// @require      https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js
-// @require      https://cdn.jsdelivr.net/gh/Tabris-ZX/vjudge-sync@main/Extension/src/content/career-image.js
-// @resource     careerCSS https://cdn.jsdelivr.net/gh/Tabris-ZX/vjudge-sync@main/Extension/assets/career-report.css
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
-// @grant        GM_getResourceText
 // @connect      vjudge.net
 // @connect      vjudge.net.cn
 // @connect      luogu.com.cn
@@ -31,7 +27,7 @@
     if (!/vjudge\.net(\.cn)?$/.test(location.hostname)) return;
 
     const DEFAULT_SYNC_DELAY = 8000;
-    const MIN_SYNC_DELAY = 500;
+    const MIN_SYNC_DELAY = 5000;
     const MAX_SYNC_DELAY = 20000;
     const SYNC_DELAY_KEY = 'sync_delay_ms';
     const PANEL_POS_KEY = 'vj_panel_pos';
@@ -208,11 +204,6 @@
     color: white;
 }
 
-#vj-career-btn {
-    background: #222725;
-    color: white;
-}
-
 #vj-speed-btn {
     background: #f3f4f6;
     color: #1f2937;
@@ -317,7 +308,6 @@
 
     <div class="vj-actions">
         <button id="vj-sync-btn" class="vj-btn">一键同步 AC 记录</button>
-        <button id="vj-career-btn" class="vj-btn">生涯详情</button>
         <button id="vj-speed-btn" class="vj-btn" type="button">调节同步速率</button>
     </div>
 
@@ -326,25 +316,18 @@
             <span>提交间隔</span>
             <span id="vj-speed-value">8 秒/题</span>
         </div>
-        <input type="range" id="vj-speed-range" min="500" max="20000" step="100" value="8000" />
+        <input type="range" id="vj-speed-range" min="5000" max="20000" step="1000" value="8000" />
     </div>
 
     <div id="vj-sync-log"></div>
 </div>`;
     document.body.appendChild(panel);
-    try {
-        const careerStyle = GM_getResourceText('careerCSS');
-        if (careerStyle) GM_addStyle(careerStyle);
-    } catch (err) {
-        console.error('生涯报告样式加载失败', err);
-    }
 
     const header = document.getElementById('vj-sync-header');
     const toggleBtn = document.getElementById('vj-toggle-btn');
     const content = document.getElementById('vj-sync-body');
     const logBox = document.getElementById('vj-sync-log');
     const syncBtn = document.getElementById('vj-sync-btn');
-    const careerBtn = document.getElementById('vj-career-btn');
     const speedBtn = document.getElementById('vj-speed-btn');
     const speedPanel = document.getElementById('vj-speed-panel');
     const speedRange = document.getElementById('vj-speed-range');
@@ -522,9 +505,16 @@
         try {
             const verifyRes = await Fetch(`https://vjudge.net/user/remoteAccounts/list?oj=${encodeURIComponent(oj)}`);
             const verifyData = JSON.parse(verifyRes.responseText);
-            if (!verifyData?.groups || !verifyData.groups[oj] || Object.keys(verifyData.groups).length < 1) return null;
+            if (!verifyData?.groups || !verifyData.groups[oj] || Object.keys(verifyData.groups).length < 1) {
+                log(`❌ ${oj} 账号未绑定`, 'error');
+                return null;
+            }
+
             const binding = verifyData.groups[oj].defaultBinding;
-            if (!binding?.id) return null;
+            if (!binding?.id || binding.runtimeStatus !== 'READY') {
+                log(`❌ ${oj} 账号状态异常，请检查账号是否已绑定`, 'error');
+                return null;
+            }
 
             const check = await Fetch('https://vjudge.net/user/remoteAccounts/check', {
                 method: 'POST',
@@ -532,9 +522,12 @@
                 headers: { 'Content-Type': 'application/json' }
             });
             const checkData = JSON.parse(check.responseText);
-            return checkData.success ? binding.accountId : null;
+            if (checkData.success) return binding.accountId;
+
+            log(`❌ ${oj} 账号验证失败: ${checkData.error || '未知错误'}`, 'error');
+            return null;
         } catch (err) {
-            log(`❌ ${oj} 账号为空或cookie已失效`);
+            log(`❌ ${oj} 账号为空或 Cookie 已失效`, 'error');
             return null;
         }
     }
@@ -573,6 +566,8 @@
                     } else {
                         log(`❌${oj} ${problem} 重试失败: ${retryResult?.error?.i18nKey || retryResult?.error || '未知错误'}`, 'error');
                     }
+                } else if (result?.error?.i18nKey?.includes('own_account')) {
+                    log(`❌ ${oj} 未在 VJudge 绑定账号`, 'error');
                 } else {
                     log(`❌${oj} ${problem} failed: ${result?.error?.i18nKey || result?.error || '未知错误'}`, 'error');
                 }
@@ -584,13 +579,120 @@
         log(`🎈 ${oj}: 同步完成，更新 ${successCount} 题`, 'success');
     }
 
+    const OJApi = (() => {
+        async function getLuoguAccepted(user) {
+            const res = await Fetch(
+                `https://www.luogu.com.cn/user/${encodeURIComponent(user)}/practice`,
+                { headers: { 'X-Lentille-Request': 'content-only' } }
+            );
+            const data = JSON.parse(res.responseText);
+            return (data?.data?.passed || []).map(problem => problem.pid);
+        }
+
+        async function getCodeForcesAccepted(user) {
+            const res = await Fetch(
+                `https://codeforces.com/api/user.status?handle=${encodeURIComponent(user)}`
+            );
+            const submissions = JSON.parse(res.responseText).result || [];
+            const accepted = {
+                CodeForces: new Set(),
+                Gym: new Set(),
+                SGU: new Set()
+            };
+
+            submissions.filter(item => item.verdict === 'OK').forEach(({ problem }) => {
+                if (!problem?.index) return;
+                if (problem.problemsetName?.toLowerCase() === 'acmsguru') {
+                    accepted.SGU.add(problem.index);
+                } else if (problem.contestId >= 100000) {
+                    accepted.Gym.add(`${problem.contestId}${problem.index}`);
+                } else if (problem.contestId != null) {
+                    accepted.CodeForces.add(`${problem.contestId}${problem.index}`);
+                }
+            });
+
+            return Object.fromEntries(
+                Object.entries(accepted).map(([oj, pids]) => [oj, [...pids]])
+            );
+        }
+
+        async function getAtCoderAccepted(user) {
+            const accepted = new Set();
+            let fromSecond = 0;
+
+            while (true) {
+                const res = await Fetch(
+                    `https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${encodeURIComponent(user)}&from_second=${fromSecond}`
+                );
+                const submissions = JSON.parse(res.responseText) || [];
+                submissions
+                    .filter(item => item.result === 'AC')
+                    .forEach(item => accepted.add(item.problem_id));
+
+                const lastEpoch = submissions[submissions.length - 1]?.epoch_second;
+                if (submissions.length <= 10 || !lastEpoch || lastEpoch - 1 <= fromSecond) break;
+                fromSecond = lastEpoch - 1;
+            }
+
+            return [...accepted];
+        }
+
+        async function getQOJAccepted(user) {
+            const res = await Fetch(`https://qoj.ac/user/profile/${encodeURIComponent(user)}`);
+            const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
+            const accepted = [];
+
+            doc.querySelectorAll('h4.list-group-item-heading').forEach(heading => {
+                if (!heading.textContent.includes('AC 过的题目')) return;
+                const list = heading.nextElementSibling;
+                if (!list?.classList.contains('list-group-item-text')) return;
+                list.querySelectorAll('a').forEach(link => {
+                    const pid = link.textContent.trim();
+                    if (pid) accepted.push(pid);
+                });
+            });
+
+            return accepted;
+        }
+
+        async function getUOJAccepted(user) {
+            const res = await Fetch(`https://uoj.ac/user/profile/${encodeURIComponent(user)}`);
+            const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
+            const accepted = [];
+
+            doc.querySelectorAll('ul.uoj-ac-problems-list li a').forEach(link => {
+                const match = link.getAttribute('href')?.match(/\/problem\/(\d+)/);
+                if (match) accepted.push(match[1]);
+            });
+
+            return accepted;
+        }
+
+        async function getNowCoderAccepted() {
+            const res = await Fetch(
+                'https://ac.nowcoder.com/acm/problem/list/json?status=ac&page=1&pageSize=1'
+            );
+            const normalizedText = (res.responseText || '')
+                .replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3');
+            const data = JSON.parse(normalizedText);
+            return Object.keys(data.data?.statusMap || {});
+        }
+
+        return Object.freeze({
+            getLuoguAccepted,
+            getCodeForcesAccepted,
+            getAtCoderAccepted,
+            getQOJAccepted,
+            getUOJAccepted,
+            getNowCoderAccepted
+        });
+    })();
+
     async function fetchLuogu(user) {
         log('💡正在获取洛谷数据...');
         try {
-            const res = await Fetch(`https://www.luogu.com.cn/user/${user}/practice`, { headers: { 'X-Lentille-Request': 'content-only' } });
-            const json = JSON.parse(res.responseText);
-            const passed = json?.data?.passed || [];
-            await submitVJ('洛谷', passed.map(x => x.pid));
+            const pids = await OJApi.getLuoguAccepted(user);
+            await submitVJ('洛谷', pids);
         } catch (err) {
             log('洛谷数据解析失败', 'error');
         }
@@ -599,28 +701,10 @@
     async function fetchCodeForces(user) {
         log('💡正在获取CF数据...');
         try {
-            const res = await Fetch(`https://codeforces.com/api/user.status?handle=${encodeURIComponent(user)}`);
-            const result = JSON.parse(res.responseText).result || [];
-            const pids = {
-                CodeForces: new Set(),
-                Gym: new Set(),
-                SGU: new Set()
-            };
-
-            result.filter(r => r.verdict === 'OK').forEach(({ problem }) => {
-                if (!problem?.index) return;
-                if (problem.problemsetName?.toLowerCase() === 'acmsguru') {
-                    pids.SGU.add(problem.index);
-                } else if (problem.contestId >= 100000) {
-                    pids.Gym.add(`${problem.contestId}${problem.index}`);
-                } else if (problem.contestId != null) {
-                    pids.CodeForces.add(`${problem.contestId}${problem.index}`);
-                }
-            });
-
-            await submitVJ('CodeForces', [...pids.CodeForces]);
-            await submitVJ('Gym', [...pids.Gym]);
-            await submitVJ('SGU', [...pids.SGU]);
+            const pids = await OJApi.getCodeForcesAccepted(user);
+            await submitVJ('CodeForces', pids.CodeForces);
+            await submitVJ('Gym', pids.Gym);
+            await submitVJ('SGU', pids.SGU);
         } catch (err) {
             log('CF数据解析失败', 'error');
         }
@@ -629,17 +713,8 @@
     async function fetchAtCoder(user) {
         log('💡正在获取AtCoder数据...');
         try {
-            const pids = new Set();
-            let fromSecond = 0;
-            while (true) {
-                const res = await Fetch(`https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user=${encodeURIComponent(user)}&from_second=${fromSecond}`);
-                const list = JSON.parse(res.responseText) || [];
-                list.filter(r => r.result === 'AC').forEach(r => pids.add(r.problem_id));
-                const lastEpoch = list[list.length - 1]?.epoch_second;
-                if (list.length <= 10 || !lastEpoch || lastEpoch - 1 <= fromSecond) break;
-                fromSecond = lastEpoch - 1;
-            }
-            await submitVJ('AtCoder', [...pids]);
+            const pids = await OJApi.getAtCoderAccepted(user);
+            await submitVJ('AtCoder', pids);
         } catch (err) {
             log('ATC数据解析失败', 'error');
         }
@@ -648,21 +723,7 @@
     async function fetchQOJ(user) {
         log('💡正在获取QOJ数据...');
         try {
-            const res = await Fetch(`https://qoj.ac/user/profile/${encodeURIComponent(user)}`);
-            const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
-            const pids = [];
-            const headings = doc.querySelectorAll('h4.list-group-item-heading');
-            headings.forEach(h4 => {
-                if (h4.textContent.includes('AC 过的题目')) {
-                    const p = h4.nextElementSibling;
-                    if (p && p.classList.contains('list-group-item-text')) {
-                        p.querySelectorAll('a').forEach(a => {
-                            const pid = a.textContent.trim();
-                            if (pid) pids.push(pid);
-                        });
-                    }
-                }
-            });
+            const pids = await OJApi.getQOJAccepted(user);
             await submitVJ('QOJ', pids);
         } catch (err) {
             log('QOJ解析失败', 'error');
@@ -672,101 +733,23 @@
     async function fetchUOJ(user) {
         log('💡正在获取UOJ数据...');
         try {
-            const res = await Fetch(`https://uoj.ac/user/profile/${encodeURIComponent(user)}`);
-            const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
-            const pids = [];
-            doc.querySelectorAll('ul.uoj-ac-problems-list li a').forEach(a => {
-                const match = a.getAttribute('href')?.match(/\/problem\/(\d+)/);
-                if (match) pids.push(match[1]);
-            });
+            const pids = await OJApi.getUOJAccepted(user);
             await submitVJ('UniversalOJ', pids);
         } catch (err) {
             log('UOJ解析失败', 'error');
         }
     }
 
-    async function fetchNowCoder(user) {
+    async function fetchNowCoder() {
         log('💡正在获取牛客数据...');
         try {
-            /*
-            const fst = await Fetch(`https://ac.nowcoder.com/acm/contest/profile/${encodeURIComponent(user)}/practice-coding?pageSize=1&statusTypeFilter=5&page=1`);
-            const cnt = new DOMParser().parseFromString(fst.responseText, 'text/html');
-            const totalPage = Math.ceil(Number(cnt.querySelector('.my-state-item .state-num')?.innerText) / 200);
-
-            const tasks = [];
-            for (let i = 1; i <= totalPage; i++) {
-                tasks.push(Fetch(`https://ac.nowcoder.com/acm/contest/profile/${encodeURIComponent(user)}/practice-coding?pageSize=200&statusTypeFilter=5&page=${i}`));
-            }
-
-            let pids = [];
-            const results = await Promise.all(tasks);
-            results.forEach(res => {
-                const doc = new DOMParser().parseFromString(res.responseText, 'text/html');
-                doc.querySelectorAll('table.table-hover tbody tr').forEach(tr => {
-                    const tds = tr.querySelectorAll('td');
-                    if (tds.length < 8) return;
-                    const problemLink = tds[1].querySelector('a')?.getAttribute('href') || '';
-                    const problemId = problemLink.split('/').pop();
-                    pids.push(problemId);
-                });
-            });
-
-            const preUniquePids = [...new Set(pids)];
-            const checkPromises = preUniquePids.map(async (id) => {
-                const res = await Fetch(`https://ac.nowcoder.com/acm/problem/${id}`, { credentials: 'omit' });
-                const html = res.responseText || '';
-                if (html.includes('没有查看题目的权限哦')) return null;
-                return id;
-            });
-            const finalResults = await Promise.all(checkPromises);
-            const uniquePids = finalResults.filter(item => item !== null);
-            */
-
-            const res = await Fetch('https://ac.nowcoder.com/acm/problem/list/json?status=ac&page=1&pageSize=1');
-            let data;
-            try {
-                data = JSON.parse(res.responseText);
-            } catch (parseErr) {
-                log(`牛客 JSON.parse 失败: ${parseErr.message}`, 'error');
-                const normalizedText = (res.responseText || '').replace(/([{,]\s*)(\d+)(\s*:)/g, '$1"$2"$3');
-                data = JSON.parse(normalizedText);
-            }
-            const statusMap = data.data?.statusMap || {};
-            const uniquePids = Object.keys(statusMap);
-            log(`✅ 牛客获取成功，共 ${uniquePids.length} 题`);
-            await submitVJ('牛客', uniquePids);
+            const pids = await OJApi.getNowCoderAccepted();
+            log(`✅ 牛客获取成功，共 ${pids.length} 题`);
+            await submitVJ('牛客', pids);
         } catch (err) {
             log('牛客获取数据失败', 'error');
         }
     }
-
-    careerBtn.addEventListener('click', async () => {
-        careerBtn.disabled = true;
-        syncBtn.disabled = true;
-        careerBtn.textContent = '正在生成...';
-        logBox.innerHTML = '';
-
-        try {
-            const username = getVJudgeUsername();
-            if (!username) throw new Error('请先打开并登录 VJudge');
-            if (typeof globalThis.CareerImage?.downloadCareerReport !== 'function') {
-                throw new Error('生涯图片组件未加载');
-            }
-
-            log('正在整理生涯过题数据...', 'info');
-            const success = await fetchVJudgeArchived(username);
-            if (!success) throw new Error('获取 VJudge 归档失败');
-
-            const summary = await globalThis.CareerImage.downloadCareerReport(username, vjArchived);
-            log(`生涯图片已下载：${summary.total} 题 / ${summary.ojCount} 个 OJ`, 'success');
-        } catch (err) {
-            log(`生涯图片生成失败：${err.message}`, 'error');
-        } finally {
-            careerBtn.disabled = false;
-            syncBtn.disabled = false;
-            careerBtn.textContent = '生涯详情';
-        }
-    });
 
     syncBtn.addEventListener('click', async () => {
         const username = getVJudgeUsername();
@@ -776,7 +759,6 @@
         }
 
         syncBtn.disabled = true;
-        careerBtn.disabled = true;
         syncBtn.textContent = '正在同步中...';
         logBox.innerHTML = '';
         log('开始同步 VJudge 数据...', 'info');
@@ -816,7 +798,6 @@
             log(`同步发生错误: ${err.message}`, 'error');
         } finally {
             syncBtn.disabled = false;
-            careerBtn.disabled = false;
             syncBtn.textContent = '一键同步 AC 记录';
         }
     });
