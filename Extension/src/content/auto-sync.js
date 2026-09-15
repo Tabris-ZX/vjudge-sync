@@ -1,9 +1,10 @@
 
 //配置项
 let vjArchived = {};
+let vjBindings = {}; // oj -> bindingId 缓存
 const DEFAULT_SYNC_DELAY = 8000;
 const MIN_SYNC_DELAY = 5000;
-const MAX_SYNC_DELAY = 20000;
+const MAX_SYNC_DELAY = 15000;
 let syncDelay = DEFAULT_SYNC_DELAY;
 let syncBody = {
     method: 'POST',
@@ -19,7 +20,8 @@ function normalizeSyncDelay(value) {
 function setSyncDelay(value) {syncDelay = normalizeSyncDelay(value);return syncDelay;}
 function getSyncDelay() {return syncDelay;}
 
-/* ================= 跨域请求处理 ================= */
+// 跨域请求处理
+
 async function Fetch(url, options = {}) {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({ type: 'FETCH', url, options }, (response) => {
@@ -30,7 +32,7 @@ async function Fetch(url, options = {}) {
     });
 }
 
-/* ================= 同步核心函数 ================= */
+// 同步核心函数 
 
 async function fetchVJudgeArchived(username, log) {
     if (!username) {
@@ -55,25 +57,35 @@ function getVJudgeArchivedRecords() {
     return vjArchived;
 }
 
+async function getBinding(oj) {
+    if (vjBindings[oj]) return vjBindings[oj];
+    try {
+        const res = await Fetch(`https://vjudge.net/user/remoteAccounts/list?oj=${oj}`);
+        const data = JSON.parse(res.responseText);
+        const binding = data.groups?.[oj]?.bindings?.[0];
+        if (binding) vjBindings[oj] = binding;
+        return binding || null;
+    } catch {
+        return null;
+    }
+}
+
 async function checkAccount(oj, log) {
     log(`💡正在检查${oj}账号信息...`);
     try {
-        //检查oj是否绑定
-        const verifyRes = await Fetch(`https://vjudge.net/user/remoteAccounts/list?oj=${oj}`);
-        const verifyData = JSON.parse(verifyRes.responseText);
-        if (Object.keys(verifyData['groups']).length < 1) return null;
-        const bid = verifyData['groups'][oj]['bindings'][0].id;
-        if (verifyData['groups'][oj]['bindings'][0].runtimeStatus !== "READY"){
+        const binding = await getBinding(oj);
+        if (!binding) return null;
+        if (binding.runtimeStatus !== "READY") {
             log(`❌ ${oj} 账号状态异常, 请检查账号是否已绑定`);
             return null;
         }
         //检查cookie可用性
         const check = await Fetch(`https://vjudge.net/user/remoteAccounts/check`, {
-            method: 'POST', body: JSON.stringify({ bindingId: bid }),
+            method: 'POST', body: JSON.stringify({ bindingId: binding.id }),
             headers: { 'Content-Type': 'application/json' },
         });
         const checkData = JSON.parse(check.responseText);
-        if (checkData.success) return verifyData['groups'][oj]['bindings'][0].accountId;
+        if (checkData.success) return binding.accountId;
         else {
             log(`❌ ${oj} 账号验证失败: ${checkData.errorKey}`);
             return null;
@@ -92,17 +104,22 @@ async function submitVJ(oj, pids, log) {
         log(`🎈${oj}: 所有题目已同步`);
         return;
     }
+    const binding = await getBinding(oj);
+    if (!binding) {
+        log(`❌${oj}: 未找到绑定的账号(bindingId)`);
+        return;
+    }
+    const body = `${syncBody.body}&bindingId=${binding.id}`;
     let success_cnt = 0;
     for (let i = 0; i < toSubmit.length; ++i) {
         const problem = toSubmit[i];
         const pid = `${oj}-${problem}`;
-
+        console.log(pid);
         if (i > 0) await new Promise(resolve => setTimeout(resolve, syncDelay));
         try {
-            const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, syncBody);
+            const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, { ...syncBody, body });
             const result = JSON.parse(resp.responseText);
-            
-            console.log(result);
+
             if (result?.runId) {
                 log(`🎈 ${oj} ${problem} success`);
                 success_cnt++;
@@ -113,7 +130,7 @@ async function submitVJ(oj, pids, log) {
                 await new Promise(resolve => setTimeout(resolve, 6000));
 
                 // 再次尝试提交
-                const retryResp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, syncBody);
+                const retryResp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, { ...syncBody, body });
                 const retryResult = JSON.parse(retryResp.responseText);
                 console.info(retryResult)
                 if (retryResult?.runId) {
@@ -121,9 +138,9 @@ async function submitVJ(oj, pids, log) {
                     success_cnt++;
                 } else log(`❌${oj} ${problem} 重试失败: ${result.error.i18nKey}`);
             }
-            // else if (result.error?.i18nKey?.includes('own_account')){
-            //     log(`❗${oj} 未在VJ绑定账号`);
-            // }
+            else if (result.error?.i18nKey?.includes('check_temporarily_failed')){
+                log(`❗${oj} 检查远程账号暂时出错,清稍后再试`);
+            }
             else log(`❌${oj} ${problem} failed:\n ${result.error.i18nKey}`);
         } catch (err) {
             log(`❌${oj} ${problem} error: \n${err.message}`);

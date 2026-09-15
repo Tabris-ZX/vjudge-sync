@@ -35,6 +35,7 @@
     const OJ_IDS = ['vj-lg', 'vj-cf', 'vj-atc', 'vj-qoj', 'vj-nc', 'vj-uoj'];
 
     let vjArchived = {};
+    let vjBindings = {}; // oj -> binding 缓存
     let syncDelay = DEFAULT_SYNC_DELAY;
     const syncBody = {
         method: 'POST',
@@ -500,18 +501,28 @@
         }
     }
 
+    async function getBinding(oj) {
+        if (vjBindings[oj]) return vjBindings[oj];
+        try {
+            const res = await Fetch(`https://vjudge.net/user/remoteAccounts/list?oj=${encodeURIComponent(oj)}`);
+            const data = JSON.parse(res.responseText);
+            const binding = data?.groups?.[oj]?.bindings?.[0];
+            if (binding) vjBindings[oj] = binding;
+            return binding || null;
+        } catch {
+            return null;
+        }
+    }
+
     async function checkAccount(oj) {
         log(`💡正在检查${oj}账号信息...`);
         try {
-            const verifyRes = await Fetch(`https://vjudge.net/user/remoteAccounts/list?oj=${encodeURIComponent(oj)}`);
-            const verifyData = JSON.parse(verifyRes.responseText);
-            if (!verifyData?.groups || !verifyData.groups[oj] || Object.keys(verifyData.groups).length < 1) {
+            const binding = await getBinding(oj);
+            if (!binding) {
                 log(`❌ ${oj} 账号未绑定`, 'error');
                 return null;
             }
-
-            const binding = verifyData.groups[oj].defaultBinding;
-            if (!binding?.id || binding.runtimeStatus !== 'READY') {
+            if (!binding.id || binding.runtimeStatus !== 'READY') {
                 log(`❌ ${oj} 账号状态异常，请检查账号是否已绑定`, 'error');
                 return null;
             }
@@ -541,6 +552,13 @@
             return;
         }
 
+        const binding = await getBinding(oj);
+        if (!binding) {
+            log(`❌${oj}: 未找到绑定的账号(bindingId)`, 'error');
+            return;
+        }
+        const body = `${syncBody.body}&bindingId=${binding.id}`;
+
         let successCount = 0;
         for (let i = 0; i < toSubmit.length; ++i) {
             const problem = toSubmit[i];
@@ -548,7 +566,7 @@
 
             if (i > 0) await new Promise(resolve => setTimeout(resolve, syncDelay));
             try {
-                const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, syncBody);
+                const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, { ...syncBody, body });
                 const result = JSON.parse(resp.responseText);
                 if (result?.runId) {
                     log(`🎈 ${oj} ${problem} success`, 'success');
@@ -558,7 +576,7 @@
                     await Fetch(`https://vjudge.net/problem/data?length=1&OJId=${encodeURIComponent(oj)}&probNum=${encodeURIComponent(problem)}`);
                     await new Promise(resolve => setTimeout(resolve, 6000));
 
-                    const retryResp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, syncBody);
+                    const retryResp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, { ...syncBody, body });
                     const retryResult = JSON.parse(retryResp.responseText);
                     if (retryResult?.runId) {
                         log(`🎈 ${oj} ${problem} success (retry)`, 'success');
