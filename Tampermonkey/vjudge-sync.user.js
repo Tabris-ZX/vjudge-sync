@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VJudge-Sync
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
-// @version      2.3.3
+// @version      2.3.4
 // @description  VJudge 一键同步归档已绑定的 OJ 过题记录，并支持同步速率调节
 // @author       Tabris_ZX
 // @match        https://vjudge.net/*
@@ -271,7 +271,6 @@
         <span>VJのAC自动机</span>
     </div>
     <div class="vj-header-actions">
-        <div class="vj-version">v2.3.1</div>
         <button id="vj-toggle-btn" title="收起/展开" class="vj-icon-btn">−</button>
     </div>
 </div>

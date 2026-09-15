@@ -34,10 +34,23 @@
     }
 
     /* ================= 1. UI 日志处理 ================= */
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
     function log(msg, type = 'info') {
         logBox.style.display = 'block';
-        const icon = type === 'success' ? '🎈' : (type === 'error' ? '❌' : '💬');
-        logBox.innerHTML += `<div>${icon} ${msg}</div>`;
+        // 未显式指定类型时，根据消息前缀 emoji 自动归类
+        if (type === 'info') {
+            if (/^[❌🚫⛔✖]/u.test(msg)) type = 'error';
+            else if (/^[🎈✅✔🎉⭐]/u.test(msg)) type = 'success';
+            else if (/^[❗⚠]/u.test(msg)) type = 'warn';
+        }
+        const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        entry.innerHTML = `<span class="log-time">${time}</span><span class="log-text">${escapeHtml(msg)}</span>`;
+        logBox.appendChild(entry);
         logBox.scrollTop = logBox.scrollHeight;
     }
 

@@ -236,17 +236,58 @@
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     font-size: 11px;
     line-height: 1.5;
-    max-height: 150px;
+    max-height: 200px;
     overflow-y: auto;
     background: var(--log-bg);
-    padding: 10px;
+    padding: 8px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
     display: none;
 }
 
-#vj-sync-log div {
-    margin-bottom: 4px;
+.log-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 3px 6px;
+    margin-bottom: 2px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.log-entry:last-child {
+    margin-bottom: 0;
+}
+
+.log-time {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #94a3b8;
+}
+
+.log-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.log-info {
+    color: #475569;
+}
+
+.log-success {
+    color: #059669;
+    background: #ecfdf5;
+}
+
+.log-error {
+    color: #dc2626;
+    background: #fef2f2;
+}
+
+.log-warn {
+    color: #b45309;
+    background: #fffbeb;
 }
 
 #vj-sync-log::-webkit-scrollbar {
@@ -256,4 +297,8 @@
 #vj-sync-log::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 10px;
+}
+
+#vj-sync-log::-webkit-scrollbar-track {
+    background: transparent;
 }
