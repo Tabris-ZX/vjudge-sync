@@ -2,11 +2,11 @@
 
 **Preface:**  
 VJudge provides many powerful features, such as teams, problem sets, solve details, AC code export, and more.  
-So I wanted to build a tool that can synchronize accepted problem data from other OJs to VJudge, making it easier to manage everything in one place.
+So I wanted to build a tool that can archive accepted problem data from other OJs to VJudge, making it easier to manage everything in one place.
 
 # VJudge の AC Automaton
 
-This tool is designed for **one-click synchronization of accepted records from other OJs that have already been linked on VJudge**.  
+This tool is designed for **one-click archiving of accepted records from other OJs that have already been linked on VJudge**.
 It currently supports most mainstream OJs.
 
 Continuously updating...
@@ -21,7 +21,7 @@ Continuously updating...
 - [x] NowCoder (paid problems are not supported yet)
 - [x] Auto-fill cookies
 - [x] Browser extension version
-- [x] Customizable sync rate
+- [x] Customizable archive rate
 - [x] Career accepted-problem report export
 
 - [ ] vj-better
@@ -30,13 +30,13 @@ Continuously updating...
 
 ## Quick Start
 
-### One-click Accepted Record Sync
-**If you have already linked your accounts on VJudge, you can sync with one click.**
+### One-click Accepted Record Archive
+**If you have already linked your accounts on VJudge, you can archive with one click.**
 
 1. After installing the script or extension, open VJudge and a side panel / popup will appear.
-2. Select the OJs you want to sync, then click **"One-click Sync"**.
-3. To stop syncing, simply refresh the page or close the window. (I was too lazy to implement a stop button.)
-- Note: The first sync may take a while if you have many solved problems, so please be patient.
+2. Select the OJs you want to archive, then click **"One-click Archive"**.
+3. To stop archiving, simply refresh the page or close the window. (I was too lazy to implement a stop button.)
+- Note: The first archive may take a while if you have many solved problems, so please be patient.
 
   VJudge has been updated recently, so some bugs in this tool may still be undiscovered. Issues are welcome.
 
@@ -47,7 +47,7 @@ Continuously updating...
 
 **Browser extension version:**  
 (Supports Chromium-based browsers)
-- Note: Click the pin icon in the upper-right corner of the popup to enter **window mode**. In this mode, synchronization will not be interrupted when switching tabs.
+- Note: Click the pin icon in the upper-right corner of the popup to enter **window mode**. In this mode, archiving will not be interrupted when switching tabs.
 
 ![](docs/popup.png)
 

@@ -42,16 +42,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 });
 
-// 监听标签页更新事件
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-	if (changeInfo.status === 'complete' && tab.url) {
-		chrome.action.setIcon({
-			tabId: tabId,
-			path: "assets/icon.png"
-		});
-	}
-});
-
 function fillCookies(cookies) {
 	try {
 		const inputs = document.querySelectorAll('input[data-vjudge-helper-autofill="cookie"]');

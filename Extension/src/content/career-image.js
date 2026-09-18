@@ -102,7 +102,7 @@ globalThis.CareerImage = (() => {
         signal.append(createElement('span'), createElement('span'), createElement('span'));
         report.append(
             signal,
-            createElement('div', 'career-report__eyebrow', 'VJudge Sync / Competitive Programming Archive')
+            createElement('div', 'career-report__eyebrow', 'VJudge Archive / Competitive Programming Archive')
         );
 
         const hero = createElement('header', 'career-report__hero');

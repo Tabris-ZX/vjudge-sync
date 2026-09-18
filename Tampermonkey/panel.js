@@ -12,7 +12,7 @@
         <span id="vj-toggle-btn" class="vj-btn-icon" title="收起/展开">−</span>
     </div>
     <div id="vj-sync-body">
-    <span>同步前确保vj上已经绑定好相应oj的账号</span>
+    <span>归档前确保 VJ 上已经绑定好相应 OJ 的账号</span>
         <div class="vj-input-group">
             <label><input type="checkbox" id="vj-lg" /> 洛谷</label>
         </div>
@@ -31,7 +31,7 @@
         <div class="vj-input-group">
             <label><input type="checkbox" id="vj-uoj" /> UOJ</label>
         </div>
-        <button id="vj-sync-btn">一键同步</button>
+        <button id="vj-sync-btn">一键归档</button>
         <div id="vj-sync-log"></div>
     </div>
 `;
@@ -126,13 +126,13 @@
             logBox.scrollTop = logBox.scrollHeight;
         },
         
-        // 初始化同步按钮
+        // 初始化归档按钮
         initSyncButton: function(onSyncClick) {
             const btn = document.getElementById('vj-sync-btn');
             btn.onclick = async function () {
                 const btn = this;
                 btn.disabled = true;
-                btn.textContent = '同步中...';
+                btn.textContent = '归档中...';
                 logBox.innerHTML = '';
 
                 try {
@@ -146,7 +146,7 @@
                     });
                 } finally {
                     btn.disabled = false;
-                    btn.textContent = '一键同步';
+                    btn.textContent = '一键归档';
                 }
             };
         }

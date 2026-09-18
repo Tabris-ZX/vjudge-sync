@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "VJudge-Sync",
-  "version": "2.3.4",
-  "description": "VJudge 一键同步归档已绑定的oj过题记录,目前支持大部分主流OJ",
+  "version": "2.3.5",
+  "description": "VJudge 一键归档已绑定的 OJ 过题记录,目前支持大部分主流 OJ",
   "author": "Tabris_ZX",
   "permissions": [
     "storage",
@@ -25,14 +25,14 @@
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_icon": {
-      "16": "assets/icon.png",
-      "32": "assets/icon.png"
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png"
     }
   },
   "icons": {
-    "16": "assets/icon.png",
-    "32": "assets/icon.png",
-    "48": "assets/icon.png",
-    "128": "assets/icon.png"
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
   }
 }

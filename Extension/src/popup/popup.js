@@ -14,8 +14,8 @@
     const manifest = chrome.runtime.getManifest();
     const SYNC_DELAY_KEY = 'sync_delay_ms';
     const DEFAULT_SYNC_DELAY = 8000;
-    const MIN_SYNC_DELAY = 5000;
-    const MAX_SYNC_DELAY = 20000;
+    const MIN_SYNC_DELAY = 2000;
+    const MAX_SYNC_DELAY = 10000;
 
     version.textContent = `v${manifest.version_name || manifest.version}`;
 
@@ -119,7 +119,7 @@
 
     speedBtn.onclick = () => {
         speedPanel.classList.toggle('speed-panel-hidden');
-        speedBtn.textContent = speedPanel.classList.contains('speed-panel-hidden') ? '调节同步速率' : '收起速率设置';
+        speedBtn.textContent = speedPanel.classList.contains('speed-panel-hidden') ? '调节归档速率' : '收起速率设置';
     };
 
     speedRange.addEventListener('input', async (e) => {
@@ -166,20 +166,21 @@
 
         syncBtn.disabled = true;
         careerBtn.disabled = true;
-        syncBtn.textContent = '正在同步中...';
+        syncBtn.textContent = '正在归档中...';
         logBox.innerHTML = '';
-        log('开始同步 VJudge 数据...', 'info');
+        pendingCrawlTasks = [];
+        log('开始归档 VJudge 数据...', 'info');
         log(`当前提交间隔: ${getSyncDelay() / 1000} 秒/题`, 'info');
         try {
             const success = await fetchVJudgeArchived(username, (msg) => log(msg, 'info'));
             if (!success) {
                 log('获取 VJudge 归档失败', 'error');
                 syncBtn.disabled = false;
-                syncBtn.textContent = '一键同步 AC 记录';
+                syncBtn.textContent = '一键归档 AC 记录';
                 return;
             }
 
-            // 顺序执行各个 OJ 的同步任务，避免并发过高导致卡顿或失败
+            // 顺序执行各个 OJ 的归档任务，避免并发过高导致卡顿或失败
             if (document.getElementById('vj-lg').checked) {
                 const acc = await checkAccount('洛谷', log);
                 if (acc) await fetchLuogu(acc, log);
@@ -210,13 +211,15 @@
                 if (acc) await fetchUOJ(acc, log);
             }
 
-            log('所有同步任务已完成！', 'success');
+            await checkPendingCrawlProblems((msg) => log(msg, 'info'));
+
+            log('所有归档任务已完成！', 'success');
         } catch (err) {
-            log(`同步发生错误: ${err.message}`, 'error');
+            log(`归档发生错误: ${err.message}`, 'error');
         } finally {
             syncBtn.disabled = false;
             careerBtn.disabled = false;
-            syncBtn.textContent = '一键同步 AC 记录';
+            syncBtn.textContent = '一键归档 AC 记录';
         }
     };
 })();

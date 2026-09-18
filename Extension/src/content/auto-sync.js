@@ -2,9 +2,10 @@
 //配置项
 let vjArchived = {};
 let vjBindings = {}; // oj -> bindingId 缓存
+let pendingCrawlTasks = [];
 const DEFAULT_SYNC_DELAY = 8000;
-const MIN_SYNC_DELAY = 5000;
-const MAX_SYNC_DELAY = 15000;
+const MIN_SYNC_DELAY = 2000;
+const MAX_SYNC_DELAY = 10000;
 let syncDelay = DEFAULT_SYNC_DELAY;
 let syncBody = {
     method: 'POST',
@@ -32,7 +33,7 @@ async function Fetch(url, options = {}) {
     });
 }
 
-// 同步核心函数 
+// 归档核心函数
 
 async function fetchVJudgeArchived(username, log) {
     if (!username) {
@@ -45,7 +46,7 @@ async function fetchVJudgeArchived(username, log) {
         vjArchived = json.acRecords || {};
         let total = 0;
         for (let k in vjArchived) total += vjArchived[k].length;
-        log(`VJudge 已同步 ${total} 题`);
+        log(`VJudge 已加载归档记录，共 ${total} 题`);
         return true;
     } catch (err) {
         log('获取 VJ 记录失败');
@@ -96,12 +97,86 @@ async function checkAccount(oj, log) {
     }
 }
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function startCrawlProblem(oj, problem, binding, log) {
+    try {
+        const crawlResp = await Fetch('https://vjudge.net/problem/crawl/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                remoteOj: oj,
+                remoteProblemId: String(problem),
+                accountMode: 'BINDING',
+                bindingId: binding.id
+            })
+        });
+        const crawlResult = JSON.parse(crawlResp.responseText || '{}');
+        if (!crawlResult.success || !crawlResult.runId) {
+            log(`❌${oj} ${problem} 抓取任务创建失败`, 'error');
+            return null;
+        }
+        return { oj, problem, runId: crawlResult.runId, bindingId: binding.id };
+    } catch (err) {
+        log(`❌${oj} ${problem} 抓取任务创建失败: ${err.message}`, 'error');
+        return null;
+    }
+}
+
+async function submitCrawledProblem(task, log) {
+    const pid = `${task.oj}-${task.problem}`;
+    try {
+        const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, {
+            ...syncBody,
+            body: `${syncBody.body}&bindingId=${encodeURIComponent(task.bindingId)}`
+        });
+        const result = JSON.parse(resp.responseText || '{}');
+        if (result?.runId) {
+            log(`🎈 ${task.oj} ${task.problem} 抓取后归档成功`, 'success');
+            return true;
+        }
+        log(`❌${task.oj} ${task.problem} 抓取后归档失败: ${result?.error?.i18nKey || '未知错误'}`, 'error');
+    } catch (err) {
+        log(`❌${task.oj} ${task.problem} 抓取后归档异常: ${err.message}`, 'error');
+    }
+    return false;
+}
+
+async function checkCrawlProblems(tasks, log) {
+    if (tasks.length === 0) return;
+    try {
+        const statusResp = await Fetch('https://vjudge.net/problem/crawl/tasks/dataById', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: tasks.map(task => `runIds%5B%5D=${encodeURIComponent(task.runId)}`).join('&')
+        });
+        const statusData = JSON.parse(statusResp.responseText || '{}');
+        const successfulTasks = [];
+        tasks.forEach(task => {
+            if (statusData?.[task.runId]?.status === 'SUCCEEDED') {
+                log(`🎈 ${task.oj} ${task.problem} 抓取成功`, 'success');
+                successfulTasks.push(task);
+            } else {
+                log(`❌${task.oj} ${task.problem} 抓取失败`, 'error');
+            }
+        });
+        for (const task of successfulTasks) {
+            await sleep(syncDelay);
+            await submitCrawledProblem(task, log);
+        }
+    } catch (err) {
+        log(`❌抓取题目状态检查失败: ${err.message}`, 'error');
+    }
+}
+
 async function submitVJ(oj, pids, log) {
     const archivedSet = new Set(vjArchived[oj] || []);
     const toSubmit = pids.filter(pid => !archivedSet.has(pid));
-    log(`${oj}:共AC ${pids.length} 题, 发现${toSubmit.length}未同步AC`);
+    log(`${oj}:共AC ${pids.length} 题, 发现${toSubmit.length}未归档AC`);
     if (toSubmit.length === 0) {
-        log(`🎈${oj}: 所有题目已同步`);
+        log(`🎈${oj}: 所有题目已归档`);
         return;
     }
     const binding = await getBinding(oj);
@@ -111,11 +186,12 @@ async function submitVJ(oj, pids, log) {
     }
     const body = `${syncBody.body}&bindingId=${binding.id}`;
     let success_cnt = 0;
+    const crawlTasks = [];
     for (let i = 0; i < toSubmit.length; ++i) {
         const problem = toSubmit[i];
         const pid = `${oj}-${problem}`;
         console.log(pid);
-        if (i > 0) await new Promise(resolve => setTimeout(resolve, syncDelay));
+        if (i > 0) await sleep(syncDelay);
         try {
             const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, { ...syncBody, body });
             const result = JSON.parse(resp.responseText);
@@ -124,34 +200,33 @@ async function submitVJ(oj, pids, log) {
                 log(`🎈 ${oj} ${problem} success`);
                 success_cnt++;
             } else if (result.error?.i18nKey?.includes('not_found')) {
-                log(`❗${oj} ${problem} 不存在, 尝试抓取并等待6秒重试...`);
-                // 这里的 pid 是 VJudge 中 OJ-ProblemId 格式，例如 Luogu-P1001
-                await Fetch(`https://vjudge.net/problem/data?length=1&OJId=${oj}&probNum=${problem}`);
-                await new Promise(resolve => setTimeout(resolve, 6000));
-
-                // 再次尝试提交
-                const retryResp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, { ...syncBody, body });
-                const retryResult = JSON.parse(retryResp.responseText);
-                console.info(retryResult)
-                if (retryResult?.runId) {
-                    log(`🎈 ${oj} ${problem} success (retry)`);
-                    success_cnt++;
-                } else log(`❌${oj} ${problem} 重试失败: ${result.error.i18nKey}`);
+                log(`❗${oj} ${problem} 不存在, 已发起抓取任务...`);
+                crawlTasks.push(startCrawlProblem(oj, problem, binding, log));
             }
             else if (result.error?.i18nKey?.includes('check_temporarily_failed')){
                 log(`❗${oj} 检查远程账号出错,请检查账号绑定`);
             }
             else if(result.error?.i18nKey?.includes('no_recent_submissions_found')){
-                log(`❗${oj} 无最新提交,可能已归档过但vj有同步延迟`);
+                log(`❗${oj} 无最新提交,可能已归档过但 VJudge 有延迟`);
             }
             else log(`❌${oj} ${problem} failed:\n ${result.error.i18nKey}`);
         } catch (err) {
             log(`❌${oj} ${problem} error: \n${err.message}`);
             console.log(err);
-            return;
+            continue;
         }
     }
-    log(`🎈 ${oj}: 同步完成，更新 ${success_cnt} 题`);
+    const crawlTasksCreated = (await Promise.all(crawlTasks)).filter(Boolean);
+    pendingCrawlTasks.push(...crawlTasksCreated);
+    log(`🎈 ${oj}: 归档完成，更新 ${success_cnt} 题`);
+}
+
+async function checkPendingCrawlProblems(log) {
+    const tasks = pendingCrawlTasks;
+    pendingCrawlTasks = [];
+    if (tasks.length === 0) return;
+    await sleep(5000);
+    await checkCrawlProblems(tasks, log);
 }
 
 // --- 各个 OJ 获取数据逻辑 ---

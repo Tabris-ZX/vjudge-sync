@@ -2,7 +2,7 @@
 // @name         VJudge-Sync
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
 // @version      2.3.4
-// @description  VJudge 一键同步归档已绑定的 OJ 过题记录，并支持同步速率调节
+// @description  VJudge 一键归档已绑定的 OJ 过题记录，并支持归档速率调节
 // @author       Tabris_ZX
 // @match        https://vjudge.net/*
 // @match        https://vjudge.net.cn/*
@@ -27,8 +27,8 @@
     if (!/vjudge\.net(\.cn)?$/.test(location.hostname)) return;
 
     const DEFAULT_SYNC_DELAY = 8000;
-    const MIN_SYNC_DELAY = 5000;
-    const MAX_SYNC_DELAY = 20000;
+    const MIN_SYNC_DELAY = 2000;
+    const MAX_SYNC_DELAY = 10000;
     const SYNC_DELAY_KEY = 'sync_delay_ms';
     const PANEL_POS_KEY = 'vj_panel_pos';
     const PANEL_COLLAPSED_KEY = 'vj_panel_collapsed';
@@ -36,6 +36,7 @@
 
     let vjArchived = {};
     let vjBindings = {}; // oj -> binding 缓存
+    let pendingCrawlTasks = [];
     let syncDelay = DEFAULT_SYNC_DELAY;
     const syncBody = {
         method: 'POST',
@@ -276,7 +277,7 @@
 </div>
 <div id="vj-sync-body">
     <div class="vj-tip-section">
-        <div>💬💡🎈同步前请确保已绑定相应OJ账号哦~</div>
+        <div>💬💡🎈归档前请确保已绑定相应 OJ 账号哦~</div>
     </div>
 
     <div class="vj-oj-grid">
@@ -307,8 +308,8 @@
     </div>
 
     <div class="vj-actions">
-        <button id="vj-sync-btn" class="vj-btn">一键同步 AC 记录</button>
-        <button id="vj-speed-btn" class="vj-btn" type="button">调节同步速率</button>
+        <button id="vj-sync-btn" class="vj-btn">一键归档 AC 记录</button>
+        <button id="vj-speed-btn" class="vj-btn" type="button">调节归档速率</button>
     </div>
 
     <div id="vj-speed-panel" class="vj-hidden">
@@ -316,7 +317,7 @@
             <span>提交间隔</span>
             <span id="vj-speed-value">8 秒/题</span>
         </div>
-        <input type="range" id="vj-speed-range" min="5000" max="20000" step="1000" value="8000" />
+        <input type="range" id="vj-speed-range" min="2000" max="10000" step="1000" value="8000" />
     </div>
 
     <div id="vj-sync-log"></div>
@@ -420,7 +421,7 @@
     speedBtn.addEventListener('click', () => {
         const willHide = !speedPanel.classList.contains('vj-hidden');
         speedPanel.classList.toggle('vj-hidden', willHide);
-        speedBtn.textContent = willHide ? '调节同步速率' : '收起速率设置';
+        speedBtn.textContent = willHide ? '调节归档速率' : '收起速率设置';
     });
 
     speedRange.addEventListener('input', (e) => {
@@ -492,7 +493,7 @@
             vjArchived = json.acRecords || {};
             let total = 0;
             for (const k in vjArchived) total += vjArchived[k].length;
-            log(`VJudge 已同步 ${total} 题`);
+            log(`VJudge 已加载归档记录，共 ${total} 题`);
             return true;
         } catch (err) {
             log('获取 VJ 记录失败', 'error');
@@ -542,12 +543,86 @@
         }
     }
 
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function startCrawlProblem(oj, problem, binding) {
+        try {
+            const crawlResp = await Fetch('https://vjudge.net/problem/crawl/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    remoteOj: oj,
+                    remoteProblemId: String(problem),
+                    accountMode: 'BINDING',
+                    bindingId: binding.id
+                })
+            });
+            const crawlResult = JSON.parse(crawlResp.responseText || '{}');
+            if (!crawlResult.success || !crawlResult.runId) {
+                log(`❌${oj} ${problem} 抓取任务创建失败`, 'error');
+                return null;
+            }
+            return { oj, problem, runId: crawlResult.runId, bindingId: binding.id };
+        } catch (err) {
+            log(`❌${oj} ${problem} 抓取任务创建失败: ${err.message}`, 'error');
+            return null;
+        }
+    }
+
+    async function submitCrawledProblem(task) {
+        const pid = `${task.oj}-${task.problem}`;
+        try {
+            const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, {
+                ...syncBody,
+                body: `${syncBody.body}&bindingId=${encodeURIComponent(task.bindingId)}`
+            });
+            const result = JSON.parse(resp.responseText || '{}');
+            if (result?.runId) {
+                log(`🎈 ${task.oj} ${task.problem} 抓取后归档成功`, 'success');
+                return true;
+            }
+            log(`❌${task.oj} ${task.problem} 抓取后归档失败: ${result?.error?.i18nKey || '未知错误'}`, 'error');
+        } catch (err) {
+            log(`❌${task.oj} ${task.problem} 抓取后归档异常: ${err.message}`, 'error');
+        }
+        return false;
+    }
+
+    async function checkCrawlProblems(tasks) {
+        if (tasks.length === 0) return;
+        try {
+            const statusResp = await Fetch('https://vjudge.net/problem/crawl/tasks/dataById', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: tasks.map(task => `runIds%5B%5D=${encodeURIComponent(task.runId)}`).join('&')
+            });
+            const statusData = JSON.parse(statusResp.responseText || '{}');
+            const successfulTasks = [];
+            tasks.forEach(task => {
+                if (statusData?.[task.runId]?.status === 'SUCCEEDED') {
+                    log(`🎈 ${task.oj} ${task.problem} 抓取成功`, 'success');
+                    successfulTasks.push(task);
+                } else {
+                    log(`❌${task.oj} ${task.problem} 抓取失败`, 'error');
+                }
+            });
+            for (const task of successfulTasks) {
+                await sleep(syncDelay);
+                await submitCrawledProblem(task);
+            }
+        } catch (err) {
+            log(`❌抓取题目状态检查失败: ${err.message}`, 'error');
+        }
+    }
+
     async function submitVJ(oj, pids) {
         const archivedSet = new Set(vjArchived[oj] || []);
         const toSubmit = pids.filter(pid => !archivedSet.has(pid));
-        log(`${oj}:共AC ${pids.length} 题, 发现${toSubmit.length}未同步AC`);
+        log(`${oj}:共AC ${pids.length} 题, 发现${toSubmit.length}未归档AC`);
         if (toSubmit.length === 0) {
-            log(`🎈${oj}: 所有题目已同步`, 'success');
+            log(`🎈${oj}: 所有题目已归档`, 'success');
             return;
         }
 
@@ -559,11 +634,12 @@
         const body = `${syncBody.body}&bindingId=${binding.id}`;
 
         let successCount = 0;
+        const crawlTasks = [];
         for (let i = 0; i < toSubmit.length; ++i) {
             const problem = toSubmit[i];
             const pid = `${oj}-${problem}`;
 
-            if (i > 0) await new Promise(resolve => setTimeout(resolve, syncDelay));
+            if (i > 0) await sleep(syncDelay);
             try {
                 const resp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, { ...syncBody, body });
                 const result = JSON.parse(resp.responseText);
@@ -571,18 +647,8 @@
                     log(`🎈 ${oj} ${problem} success`, 'success');
                     successCount++;
                 } else if (result?.error?.i18nKey?.includes('not_found')) {
-                    log(`${oj} ${problem} 不存在, 尝试抓取并等待6秒重试...`);
-                    await Fetch(`https://vjudge.net/problem/data?length=1&OJId=${encodeURIComponent(oj)}&probNum=${encodeURIComponent(problem)}`);
-                    await new Promise(resolve => setTimeout(resolve, 6000));
-
-                    const retryResp = await Fetch(`https://vjudge.net/problem/submit/${pid}`, { ...syncBody, body });
-                    const retryResult = JSON.parse(retryResp.responseText);
-                    if (retryResult?.runId) {
-                        log(`🎈 ${oj} ${problem} success (retry)`, 'success');
-                        successCount++;
-                    } else {
-                        log(`❌${oj} ${problem} 重试失败: ${retryResult?.error?.i18nKey || retryResult?.error || '未知错误'}`, 'error');
-                    }
+                    log(`${oj} ${problem} 不存在, 已异步发起抓取任务...`);
+                    crawlTasks.push(startCrawlProblem(oj, problem, binding));
                 } else if (result?.error?.i18nKey?.includes('own_account')) {
                     log(`❌ ${oj} 未在 VJudge 绑定账号`, 'error');
                 } else {
@@ -590,10 +656,20 @@
                 }
             } catch (err) {
                 log(`❌${oj} ${problem} error: ${err.message}`, 'error');
-                return;
+                continue;
             }
         }
-        log(`🎈 ${oj}: 同步完成，更新 ${successCount} 题`, 'success');
+        const crawlTasksCreated = (await Promise.all(crawlTasks)).filter(Boolean);
+        pendingCrawlTasks.push(...crawlTasksCreated);
+        log(`🎈 ${oj}: 归档完成，更新 ${successCount} 题`, 'success');
+    }
+
+    async function checkPendingCrawlProblems() {
+        const tasks = pendingCrawlTasks;
+        pendingCrawlTasks = [];
+        if (tasks.length === 0) return;
+        await sleep(5000);
+        await checkCrawlProblems(tasks);
     }
 
     const OJApi = (() => {
@@ -776,9 +852,10 @@
         }
 
         syncBtn.disabled = true;
-        syncBtn.textContent = '正在同步中...';
+        syncBtn.textContent = '正在归档中...';
         logBox.innerHTML = '';
-        log('开始同步 VJudge 数据...', 'info');
+        pendingCrawlTasks = [];
+        log('开始归档 VJudge 数据...', 'info');
         log(`当前提交间隔: ${getSyncDelay() / 1000} 秒/题`, 'info');
 
         try {
@@ -810,12 +887,14 @@
                 if (acc) await fetchUOJ(acc);
             }
 
-            log('所有同步任务已完成！', 'success');
+            await checkPendingCrawlProblems();
+
+            log('所有归档任务已完成！', 'success');
         } catch (err) {
-            log(`同步发生错误: ${err.message}`, 'error');
+            log(`归档发生错误: ${err.message}`, 'error');
         } finally {
             syncBtn.disabled = false;
-            syncBtn.textContent = '一键同步 AC 记录';
+            syncBtn.textContent = '一键归档 AC 记录';
         }
     });
 })();
