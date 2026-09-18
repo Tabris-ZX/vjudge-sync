@@ -87,7 +87,7 @@ async function checkAccount(oj, log) {
         const checkData = JSON.parse(check.responseText);
         if (checkData.success) return binding.accountId;
         else {
-            log(`❌ ${oj} 账号验证失败: ${checkData.errorKey}`);
+            log(`❌ ${oj} 账号验证失败,请检查绑定是否失效: ${checkData.errorKey}`);
             return null;
         }
     } catch (err) {
@@ -139,7 +139,10 @@ async function submitVJ(oj, pids, log) {
                 } else log(`❌${oj} ${problem} 重试失败: ${result.error.i18nKey}`);
             }
             else if (result.error?.i18nKey?.includes('check_temporarily_failed')){
-                log(`❗${oj} 检查远程账号暂时出错,清稍后再试`);
+                log(`❗${oj} 检查远程账号出错,请检查账号绑定`);
+            }
+            else if(result.error?.i18nKey?.includes('no_recent_submissions_found')){
+                log(`❗${oj} 无最新提交,可能已归档过但vj有同步延迟`);
             }
             else log(`❌${oj} ${problem} failed:\n ${result.error.i18nKey}`);
         } catch (err) {
@@ -161,7 +164,7 @@ async function fetchLuogu(user, log) {
 }
 
 async function fetchCodeForces(user, log) {
-    log('💡正在获取CF数据...');
+    log('💡正在获取CodeForces数据...');
     try {
         const pids = await OJApi.getCodeForcesAccepted(user);
         await submitVJ('CodeForces', pids.CodeForces, log);
@@ -198,7 +201,6 @@ async function fetchNowCoder(user, log) {
     log('💡正在获取牛客数据...');
     try {
         const pids = await OJApi.getNowCoderAccepted(user);
-        log(`✅ 牛客获取成功，共 ${pids.length} 题`);
         await submitVJ('牛客', pids, log);
     } catch (err) { log('牛客获取数据失败'); }
 }
