@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VJudge-Sync
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
-// @version      2.3.6
+// @version      2.3.7
 // @description  VJudge 一键归档已绑定的 OJ 过题记录，并支持归档速率调节
 // @author       Tabris_ZX
 // @match        https://vjudge.net/*
