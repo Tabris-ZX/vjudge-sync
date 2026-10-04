@@ -1,7 +1,26 @@
 
+const ALLOWED_FETCH_HOSTS = [
+	'vjudge.net', 'luogu.com.cn', 'nowcoder.com',
+	'codeforces.com', 'kenkoooo.com', 'qoj.ac', 'uoj.ac'
+];
+
+function isAllowedFetchUrl(url) {
+	try {
+		const { hostname, protocol } = new URL(url);
+		if (protocol !== 'http:' && protocol !== 'https:') return false;
+		return ALLOWED_FETCH_HOSTS.some((host) => hostname === host || hostname.endsWith('.' + host));
+	} catch (error) {
+		return false;
+	}
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	if (request.type === 'FETCH') {
 		const { url, options } = request;
+		if (!isAllowedFetchUrl(url)) {
+			sendResponse({ error: 'URL not allowed' });
+			return true;
+		}
 		fetch(url, { credentials: 'include', ...options })
 			.then(async (response) => {
 				const text = await response.text();
