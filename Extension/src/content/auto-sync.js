@@ -75,7 +75,10 @@ async function checkAccount(oj, log) {
     log(`💡正在检查${oj}账号信息...`);
     try {
         const binding = await getBinding(oj);
-        if (!binding) return null;
+        if (!binding) {
+            log(`❌ ${oj} 账号未绑定, 请先在 VJudge 绑定该 OJ 账号`);
+            return null;
+        }
         if (binding.runtimeStatus !== "READY") {
             log(`❌ ${oj} 账号状态异常, 请检查账号是否已绑定`);
             return null;
@@ -88,7 +91,8 @@ async function checkAccount(oj, log) {
         const checkData = JSON.parse(check.responseText);
         if (checkData.success) return binding.accountId;
         else {
-            log(`❌ ${oj} 账号验证失败,请检查绑定是否失效: ${checkData.errorKey}`);
+            log(`❌ ${oj} 账号验证失败,请检查绑定是否失效`);
+            console.error(checkData.errorKey);
             return null;
         }
     } catch (err) {
@@ -156,7 +160,7 @@ async function checkCrawlProblems(tasks, log) {
         const successfulTasks = [];
         tasks.forEach(task => {
             if (statusData?.[task.runId]?.status === 'SUCCEEDED') {
-                log(`🎈 ${task.oj} ${task.problem} 抓取成功`, 'success');
+                //log(`🎈 ${task.oj} ${task.problem} 抓取成功`, 'success');
                 successfulTasks.push(task);
             } else {
                 log(`❌${task.oj} ${task.problem} 抓取失败`, 'error');

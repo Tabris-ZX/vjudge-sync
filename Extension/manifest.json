@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VJudge-Sync",
-  "version": "2.3.5",
+  "version": "2.3.6",
   "description": "VJudge 一键归档已绑定的 OJ 过题记录,目前支持大部分主流 OJ",
   "author": "Tabris_ZX",
   "permissions": [

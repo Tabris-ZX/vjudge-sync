@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VJudge-Sync
 // @namespace    https://github.com/Tabris-ZX/vjudge-sync
-// @version      2.3.5
+// @version      2.3.6
 // @description  VJudge 一键归档已绑定的 OJ 过题记录，并支持归档速率调节
 // @author       Tabris_ZX
 // @match        https://vjudge.net/*
@@ -519,7 +519,7 @@
         try {
             const binding = await getBinding(oj);
             if (!binding) {
-                log(`❌ ${oj} 账号未绑定`, 'error');
+                log(`❌ ${oj} 账号未绑定, 请先在 VJudge 绑定该 OJ 账号`, 'error');
                 return null;
             }
             if (!binding.id || binding.runtimeStatus !== 'READY') {
